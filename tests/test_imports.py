@@ -7,4 +7,7 @@ def test_top_level_packages_import() -> None:
     import maynard_tools.discovery
     import maynard_tools.verifier
 
-    assert maynard_tools.__version__ == "0.4.0"
+    import neuracert
+
+    assert maynard_tools.__version__ == "0.5.0"
+    assert neuracert.__version__ == "0.5.0"

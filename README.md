@@ -1,15 +1,56 @@
-# Maynard Tools
+# NeuraCert
 
-Een installeerbaar Python-package voor twee strikt gescheiden workflows:
+Een uitbreidbaar Python-framework voor numerieke discovery, distillation,
+refinement en onafhankelijke verificatie van number-theoryproblemen.
 
-- **discovery** zoekt met floating-point-optimalisatie naar geschikte
-  separeerbare trial functions;
-- **certification** controleert geëxporteerde kandidaten met exacte of
-  intervalrekenkunde.
+Maynard is de eerste ingebouwde probleemplugin, niet langer de architectuur van
+het hele package. De bestaande `maynard-*`-commando's blijven beschikbaar als
+compatibiliteitslaag.
 
-Discovery importeert nooit uit certification. Een discovery-resultaat is dus
-geen impliciet certificaat en de exacte backends kunnen onafhankelijk worden
-geïnstalleerd en uitgevoerd.
+## Generieke discovery
+
+Een gebruiker implementeert alleen sampling, een differentiable objective en
+goedkope validatie:
+
+```python
+from neuracert import FunctionalProblem, Evaluation, Grid, discover
+
+class MyProblem(FunctionalProblem):
+    name = "my-number-theory-problem"
+
+    def sample_domain(self, config):
+        return Grid(points=...)
+
+    def evaluate(self, candidate, grid):
+        return Evaluation(objective=...)
+
+    def validate(self, candidate, grid):
+        return {"finite": True}
+
+result = discover(problem=MyProblem(), model="mlp", device="cuda")
+```
+
+Voor een volledige workflow:
+
+```python
+from neuracert import Pipeline
+from neuracert.discovery import NeuralDiscovery, LandscapeProbe
+from neuracert.distill import RationalClusterDistiller
+from neuracert.refine import GeneralizedEigenRefiner
+from neuracert.verify import ExactCertificateVerifier
+
+pipeline = Pipeline(
+    discovery=NeuralDiscovery(...),
+    diagnostics=LandscapeProbe(),
+    distiller=RationalClusterDistiller(...),
+    refiner=GeneralizedEigenRefiner(...),
+    verifier=ExactCertificateVerifier(verifier=my_independent_verifier),
+)
+result = pipeline.run(MyProblem())
+```
+
+Zie [de pluginhandleiding](docs/problem_plugins.md) en
+[het uitvoerbare voorbeeld](examples/custom_problem.py).
 
 ## Installatie
 
@@ -101,31 +142,20 @@ een onafhankelijke diagnostische/falsificatietest en levert geen certificaat.
 ## Packagestructuur
 
 ```text
-maynard_tools/
+neuracert/
+├── core/                 # problem/grid/result/constraint/registry-contracten
+├── discovery/            # generieke modellen, trainer, optimizers en probes
+├── distill/              # rational/spectral/sparse policies
+├── refine/               # eigen/convex/Newton/local policies
+├── verify/               # onafhankelijke verifierinterfaces en primitives
+├── pipeline.py
+└── problems/
+    └── maynard/          # eerste probleemplugin en legacy adapters
+
+maynard_tools/            # backwards-compatible gespecialiseerde implementatie
 ├── discovery/
-│   ├── numerics.py       # quadratuur, interpolatie en chain planning
-│   ├── cli.py            # dispatcher voor --method poly|ratio
-│   ├── models.py         # gedeelde PyTorch-kanaalmodellen
-│   ├── diagnostics.py    # conditionering en referentiecontroles
-│   ├── distributed.py    # procesgroepen en pair-sharding
-│   ├── scheduling.py     # iteratie- en learning-ratehelpers
-│   ├── factored.py       # factored discovery-pipeline
-│   ├── ratio.py          # clustered confluent-ratio discovery
-│   └── gated.py          # gated/distributed discovery-pipeline
 ├── certification/
-    ├── cli.py
-    ├── ratio.py
-    ├── karatsuba.py
-    ├── epsilon_karatsuba.py
-    ├── flint_streaming.py
-    ├── crt.py
-    ├── crt_ball.py
-    ├── crt_ball_scaled.py
-    ├── scaled_crt.py
-    └── scaled_domain.py
 └── verifier/
-    ├── certificate.py    # rigoureuze poly/ratio-certificaatverificatie
-    └── direct_ij.py      # niet-rigoureuze directe I/J-controle
 ```
 
 Zie [docs/architecture.md](docs/architecture.md) voor de dependencyregels.

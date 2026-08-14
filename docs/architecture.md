@@ -1,5 +1,28 @@
 # Architectuur
 
+## Generieke laag
+
+`neuracert.core` definieert alleen contracts en value objects. Een problem
+plugin implementeert domeinsampling, een differentiable objective en goedkope
+validatie. De algoritmen leven in afzonderlijke stages:
+
+```text
+Problem
+  │
+  ▼
+Discovery ──> Distillation ──> Refinement ──> Verification
+    │              │               │                │
+ numeriek       structureel      lokaal/exact     onafhankelijk
+```
+
+De pipeline bewaart iedere tussenuitkomst als een typed stage result. Geen
+stage mag een numeriek resultaat stilzwijgend promoveren tot een bewijs.
+
+`neuracert.problems.maynard` is een plugin/adaptatielaag. De gespecialiseerde
+historische implementatie blijft voorlopig onder `maynard_tools`, zodat de
+nieuwe abstractie geen bewezen werkende numeriek herschrijft zonder afzonderlijke
+regressievalidatie.
+
 ## Harde grens
 
 `maynard_tools.discovery` mag geen module uit
