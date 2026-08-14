@@ -58,16 +58,14 @@ Zie [de pluginhandleiding](docs/problem_plugins.md) en
 python -m pip install .
 ```
 
-Voor de FLINT-backend:
-
-```bash
-python -m pip install ".[certification]"
-```
+`python-flint` wordt standaard meegeïnstalleerd, omdat exacte certificering
+`from flint import ...` gebruikt. De distributienaam voor `pip` is dus
+`python-flint`, terwijl de Python-importnaam `flint` is.
 
 Voor ontwikkeling en tests:
 
 ```bash
-python -m pip install -e ".[dev,certification]"
+python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
