@@ -74,20 +74,20 @@ python -m pytest
 ## Commando's
 
 ```bash
-maynard-discover --help
-maynard-discover --method poly --help
-maynard-discover --method ratio --help
-maynard-discover-gated --help
-maynard-certify --help
-maynard-certify --method poly --help
-maynard-certify --method ratio --help
-maynard-certify-epsilon --help
-maynard-certify-flint --help
-maynard-certify-crt --help
-maynard-certify-crt-ball --help
-maynard-certify-crt-scaled --help
-maynard-verify --help
-maynard-verify-direct --help
+neuracert discover --help
+neuracert discover --method poly --help
+neuracert discover --method ratio --help
+neuracert discover-gated --help
+neuracert certify --help
+neuracert certify --method poly --help
+neuracert certify --method ratio --help
+neuracert certify-epsilon --help
+neuracert certify-flint --help
+neuracert certify-crt --help
+neuracert certify-crt-ball --help
+neuracert certify-crt-scaled --help
+neuracert verify --help
+neuracert verify-direct --help
 ```
 
 De gated discovery kan zoals het oorspronkelijke script via `torchrun` worden
@@ -97,26 +97,26 @@ Wanneer `--export PAD` is opgegeven, wordt het NPZ-bestand altijd geschreven.
 Een mislukte numerieke refinement gate geeft daarbij een duidelijke waarschuwing
 in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
 
-`maynard-discover` ondersteunt twee discovery-families. `--method poly` is de
+`neuracert discover` ondersteunt twee discovery-families. `--method poly` is de
 bestaande neurale pipeline en blijft de standaard voor achterwaartse
 compatibiliteit. `--method ratio` gebruikt de clustered confluent-ratio basis:
 
 ```bash
-maynard-discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
+neuracert discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
 ```
 
 Dezelfde indeling geldt voor de hoofd-certificerings-CLI. De bestaande
 Karatsuba-code valt onder `poly`; de nieuwe Arb-certifier valt onder `ratio`:
 
 ```bash
-maynard-discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
-maynard-certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
+neuracert discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
+neuracert certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
 ```
 
 De ratio-certifier accepteert discovery-exports ook expliciet via `--npz`:
 
 ```bash
-maynard-certify --method ratio --npz k650000000_single.npz
+neuracert certify --method ratio --npz k650000000_single.npz
 ```
 
 Deze backend gebruikt de v6 Arb-route met directed rounding end-to-end. De
@@ -134,18 +134,18 @@ zelfstandig subpackage. Hij importeert geen code uit discovery of certification
 en implementeert de benodigde rekenstappen opnieuw.
 
 ```bash
-maynard-verify poly-certificaat.json --method poly
-maynard-verify ratio-certificaat.json --method ratio
+neuracert verify poly-certificaat.json --method poly
+neuracert verify ratio-certificaat.json --method ratio
 ```
 
 Voor de niet-rigoureuze, directe Monte-Carlo-controle van de oorspronkelijke
 Maynard-functionalen is er een bewust apart commando:
 
 ```bash
-maynard-verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
+neuracert verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
 ```
 
-`maynard-verify` controleert een bewijs; `maynard-verify-direct` is uitsluitend
+`neuracert verify` controleert een bewijs; `neuracert verify-direct` is uitsluitend
 een onafhankelijke diagnostische/falsificatietest en levert geen certificaat.
 
 ### Delsarte-codegrenzen
@@ -155,14 +155,14 @@ weerspiegelt dat dit probleem andere invoer en een andere certificeringsroute
 heeft dan Maynard:
 
 ```bash
-neuracert-delsarte hamming --n 24 --distance 8 --q 2 \
+neuracert delsarte bound hamming --n 24 --distance 8 --q 2 \
   --certificate delsarte.json
-neuracert-verify-delsarte delsarte.json
+neuracert delsarte verify delsarte.json
 
-neuracert-delsarte johnson --n 16 --distance 6 --weight 6 \
+neuracert delsarte bound johnson --n 16 --distance 6 --weight 6 \
   --certificate constant-weight.json
 
-neuracert-delsarte-hierarchy 10 6 --r 3 \
+neuracert delsarte hierarchy 10 6 --r 3 \
   --output hierarchy-r3-10-6.json
 ```
 
@@ -177,9 +177,9 @@ De derde probleemplugin bevat Gaussian-mixture discovery, collocatie, een
 globale Laguerre-LP, een hybride A/B-diagnose en exacte Sturm-certificering:
 
 ```bash
-neuracert-sign-laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
-neuracert-sign-certify --json candidate.json --out certificate.json
-neuracert-sign-verify certificate.json
+neuracert sign laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
+neuracert sign certify --json candidate.json --out certificate.json
+neuracert sign verify certificate.json
 ```
 
 Zie [docs/sign-uncertainty.md](docs/sign-uncertainty.md) voor alle discovery-

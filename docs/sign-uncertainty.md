@@ -10,23 +10,23 @@ command contracts.
 Gaussian-mixture structure discovery:
 
 ```bash
-neuracert-sign-discover --mode single --d 4 --sign 1 --k 8 --json candidate.json
-neuracert-sign-collocate --d 4 --sign 1 --k 8 --json polished.json
+neuracert sign discover --mode single --d 4 --sign 1 --k 8 --json candidate.json
+neuracert sign collocate --d 4 --sign 1 --k 8 --json polished.json
 ```
 
 Global Laguerre LP and exact certification:
 
 ```bash
-neuracert-sign-laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
-neuracert-sign-certify --json candidate.json --out certificate.json
-neuracert-sign-verify certificate.json
+neuracert sign laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
+neuracert sign certify --json candidate.json --out certificate.json
+neuracert sign verify certificate.json
 ```
 
 The hybrid diagnostic compares the Laguerre space with added Gaussian
 directions using the same convex oracle:
 
 ```bash
-neuracert-sign-hybrid --d 1 --n-basis 12 --widths 1.5,2.5,4,6,10
+neuracert sign hybrid --d 1 --n-basis 12 --widths 1.5,2.5,4,6,10
 ```
 
 ## Trust boundaries

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuracert"
-version = "0.8.1"
+version = "0.9.0"
 description = "Composable neural discovery, distillation, refinement and verification for number theory"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,25 +21,7 @@ certification = ["python-flint>=0.6"]
 dev = ["build>=1.2", "pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
-maynard-discover = "maynard_tools.discovery.cli:main"
-maynard-discover-gated = "maynard_tools.discovery.gated:main"
-maynard-certify = "maynard_tools.certification.cli:main"
-maynard-certify-epsilon = "maynard_tools.certification.epsilon_karatsuba:main"
-maynard-certify-flint = "maynard_tools.certification.flint_streaming:main"
-maynard-certify-crt = "maynard_tools.certification.crt:main"
-maynard-certify-crt-ball = "maynard_tools.certification.crt_ball:main"
-maynard-certify-crt-scaled = "maynard_tools.certification.crt_ball_scaled:main"
-maynard-verify = "maynard_tools.verifier.certificate:main"
-maynard-verify-direct = "maynard_tools.verifier.direct_ij:main"
-neuracert-delsarte = "neuracert.problems.delsarte.cli:main"
-neuracert-delsarte-hierarchy = "neuracert.problems.delsarte.hierarchy_cli:main"
-neuracert-verify-delsarte = "neuracert.problems.delsarte.verifier:cli_main"
-neuracert-sign-discover = "neuracert.problems.sign_uncertainty.gaussian_mixture:main"
-neuracert-sign-collocate = "neuracert.problems.sign_uncertainty.collocate:main"
-neuracert-sign-laguerre = "neuracert.problems.sign_uncertainty.laguerre:main"
-neuracert-sign-hybrid = "neuracert.problems.sign_uncertainty.hybrid:main"
-neuracert-sign-certify = "neuracert.problems.sign_uncertainty.certify:main"
-neuracert-sign-verify = "neuracert.problems.sign_uncertainty.verifier:main"
+neuracert = "neuracert.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

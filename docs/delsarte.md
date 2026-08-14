@@ -6,15 +6,15 @@ separate from Maynard because its inputs, numerical discovery and certificate
 format are different.
 
 ```bash
-neuracert-delsarte hamming --n 24 --distance 8 --q 2 \
+neuracert delsarte bound hamming --n 24 --distance 8 --q 2 \
   --certificate certificate.json
-neuracert-verify-delsarte certificate.json
+neuracert delsarte verify certificate.json
 ```
 
 For constant-weight codes use the Johnson scheme:
 
 ```bash
-neuracert-delsarte johnson --n 16 --distance 6 --weight 6 \
+neuracert delsarte bound johnson --n 16 --distance 6 --weight 6 \
   --certificate certificate.json
 ```
 
@@ -36,7 +36,7 @@ the verifier deliberately remains outside that trust boundary.
 The Loyfer-Linial/CJJ higher-order Delsarte LP is available separately:
 
 ```bash
-neuracert-delsarte-hierarchy 10 6 --r 3 \
+neuracert delsarte hierarchy 10 6 --r 3 \
   --output hierarchy-r3-10-6.json
 ```
 
