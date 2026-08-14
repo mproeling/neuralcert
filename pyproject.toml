@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuracert"
-version = "0.5.0"
+version = "0.6.0"
 description = "Composable neural discovery, distillation, refinement and verification for number theory"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,8 @@ maynard-certify-crt-ball = "maynard_tools.certification.crt_ball:main"
 maynard-certify-crt-scaled = "maynard_tools.certification.crt_ball_scaled:main"
 maynard-verify = "maynard_tools.verifier.certificate:main"
 maynard-verify-direct = "maynard_tools.verifier.direct_ij:main"
+neuracert-delsarte = "neuracert.problems.delsarte.cli:main"
+neuracert-verify-delsarte = "neuracert.problems.delsarte.verifier:cli_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

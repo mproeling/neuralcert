@@ -139,18 +139,40 @@ maynard-verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
 `maynard-verify` controleert een bewijs; `maynard-verify-direct` is uitsluitend
 een onafhankelijke diagnostische/falsificatietest en levert geen certificaat.
 
+### Delsarte-codegrenzen
+
+Delsarte is als tweede, zelfstandige probleemplugin toegevoegd. De eigen CLI
+weerspiegelt dat dit probleem andere invoer en een andere certificeringsroute
+heeft dan Maynard:
+
+```bash
+neuracert-delsarte hamming --n 24 --distance 8 --q 2 \
+  --certificate delsarte.json
+neuracert-verify-delsarte delsarte.json
+
+neuracert-delsarte johnson --n 16 --distance 6 --weight 6 \
+  --certificate constant-weight.json
+```
+
+De LP wordt numeriek opgelost, dyadisch afgerond en daarna exact gerepareerd.
+De JSON-uitvoer is zelfvoorzienend; de Delsarte-verifier importeert geen
+NeuraCert-code en gebruikt alleen de Python-standaardbibliotheek. Zie
+[docs/delsarte.md](docs/delsarte.md) voor de Python-API en de trust boundary.
+
 ## Packagestructuur
 
 ```text
 neuracert/
 ├── core/                 # problem/grid/result/constraint/registry-contracten
+├── exact/                # herbruikbare CRT-, basis- en schemes-infrastructuur
 ├── discovery/            # generieke modellen, trainer, optimizers en probes
 ├── distill/              # rational/spectral/sparse policies
 ├── refine/               # eigen/convex/Newton/local policies
 ├── verify/               # onafhankelijke verifierinterfaces en primitives
 ├── pipeline.py
 └── problems/
-    └── maynard/          # eerste probleemplugin en legacy adapters
+    ├── maynard/          # Maynard-plugin en legacy adapters
+    └── delsarte/         # LP-discovery, exacte certificering en losse verifier
 
 maynard_tools/            # backwards-compatible gespecialiseerde implementatie
 ├── discovery/
