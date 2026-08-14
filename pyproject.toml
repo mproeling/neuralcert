@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maynard-tools"
+version = "0.4.0"
+description = "Numerical discovery and exact certification tools for separable Maynard trial functions"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Maynard Tools contributors"}]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "torch>=2.1",
+]
+
+[project.optional-dependencies]
+certification = ["python-flint>=0.6"]
+dev = ["build>=1.2", "pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+maynard-discover = "maynard_tools.discovery.cli:main"
+maynard-discover-gated = "maynard_tools.discovery.gated:main"
+maynard-certify = "maynard_tools.certification.cli:main"
+maynard-certify-epsilon = "maynard_tools.certification.epsilon_karatsuba:main"
+maynard-certify-flint = "maynard_tools.certification.flint_streaming:main"
+maynard-certify-crt = "maynard_tools.certification.crt:main"
+maynard-certify-crt-ball = "maynard_tools.certification.crt_ball:main"
+maynard-certify-crt-scaled = "maynard_tools.certification.crt_ball_scaled:main"
+maynard-verify = "maynard_tools.verifier.certificate:main"
+maynard-verify-direct = "maynard_tools.verifier.direct_ij:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
