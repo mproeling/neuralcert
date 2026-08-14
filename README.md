@@ -113,6 +113,15 @@ maynard-discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
 maynard-certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
 ```
 
+De ratio-certifier accepteert discovery-exports ook expliciet via `--npz`:
+
+```bash
+maynard-certify --method ratio --npz k650000000_single.npz
+```
+
+Deze backend gebruikt de v6 Arb-route met directed rounding end-to-end. De
+NPZ-inhoud en SHA-256 worden vóór certificering gecontroleerd.
+
 De ratio-certifier ondersteunt op dit moment uitsluitend een export met één
 kanaal en macht 1. Gebruik daarom `--mu 1` bij discovery. Exports met meerdere
 kanalen of hogere machten worden bewust geweigerd en niet stilzwijgend

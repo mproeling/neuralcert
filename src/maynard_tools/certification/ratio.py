@@ -368,9 +368,12 @@ def build_certificate(info, src, mc=None):
     return cert
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("npz")
+    ap.add_argument("npz_positional", nargs="?", metavar="NPZ",
+                    help="discovery .npz export (positional compatibility form)")
+    ap.add_argument("--npz", dest="npz_option",
+                    help="discovery .npz export")
     ap.add_argument("--prec", type=int, default=200)
     ap.add_argument("--P", type=float, default=8.0)
     ap.add_argument("--theta-far", type=float, default=120.0)
@@ -380,9 +383,14 @@ def main():
     ap.add_argument("--monte-carlo", action="store_true")
     ap.add_argument("--mc-samples", type=int, default=40000)
     ap.add_argument("--cert-json", type=str, default=None)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
+    if a.npz_option and a.npz_positional:
+        ap.error("give the discovery export either positionally or with --npz, not both")
+    npz_path = a.npz_option or a.npz_positional
+    if not npz_path:
+        ap.error("an NPZ discovery export is required (use --npz FILE)")
 
-    d = load(a.npz)
+    d = load(npz_path)
     print(f"trial function : {d['canonical'][:88]}")
     print(f"  sha256       = {d['sha'][:16]}...  (verified)")
     print(f"  k            = {d['k']}   R_discovery = {d['R_discovery']:.10f}")
@@ -407,7 +415,7 @@ def main():
             print(f"  MC diagnostic: R = {mc['R']:.6f}   peeling rel diff "
                   f"{mc['rel_D_mismatch']:.2e}")
     if a.cert_json:
-        src = dict(npz=a.npz, canonical=d["canonical"], sha256=d["sha"],
+        src = dict(npz=npz_path, canonical=d["canonical"], sha256=d["sha"],
                    R_discovery=d["R_discovery"], u_exact=str(d["ws"][0]))
         cert = build_certificate(info, src, mc=mc)
         with open(a.cert_json, "w") as f:
