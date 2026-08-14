@@ -152,6 +152,9 @@ neuracert-verify-delsarte delsarte.json
 
 neuracert-delsarte johnson --n 16 --distance 6 --weight 6 \
   --certificate constant-weight.json
+
+neuracert-delsarte-hierarchy 10 6 --r 3 \
+  --output hierarchy-r3-10-6.json
 ```
 
 De LP wordt numeriek opgelost, dyadisch afgerond en daarna exact gerepareerd.
@@ -172,7 +175,7 @@ neuracert/
 ├── pipeline.py
 └── problems/
     ├── maynard/          # Maynard-plugin en legacy adapters
-    └── delsarte/         # LP-discovery, exacte certificering en losse verifier
+    └── delsarte/         # niveau-1 en hogere LP, certificering en losse verifier
 
 maynard_tools/            # backwards-compatible gespecialiseerde implementatie
 ├── discovery/
