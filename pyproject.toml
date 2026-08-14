@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuracert"
-version = "0.7.0"
+version = "0.8.0"
 description = "Composable neural discovery, distillation, refinement and verification for number theory"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,6 +13,7 @@ dependencies = [
   "numpy>=1.24",
   "scipy>=1.10",
   "torch>=2.1",
+  "mpmath>=1.3",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,12 @@ maynard-verify-direct = "maynard_tools.verifier.direct_ij:main"
 neuracert-delsarte = "neuracert.problems.delsarte.cli:main"
 neuracert-delsarte-hierarchy = "neuracert.problems.delsarte.hierarchy_cli:main"
 neuracert-verify-delsarte = "neuracert.problems.delsarte.verifier:cli_main"
+neuracert-sign-discover = "neuracert.problems.sign_uncertainty.gaussian_mixture:main"
+neuracert-sign-collocate = "neuracert.problems.sign_uncertainty.collocate:main"
+neuracert-sign-laguerre = "neuracert.problems.sign_uncertainty.laguerre:main"
+neuracert-sign-hybrid = "neuracert.problems.sign_uncertainty.hybrid:main"
+neuracert-sign-certify = "neuracert.problems.sign_uncertainty.certify:main"
+neuracert-sign-verify = "neuracert.problems.sign_uncertainty.verifier:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

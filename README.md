@@ -162,6 +162,21 @@ De JSON-uitvoer is zelfvoorzienend; de Delsarte-verifier importeert geen
 NeuraCert-code en gebruikt alleen de Python-standaardbibliotheek. Zie
 [docs/delsarte.md](docs/delsarte.md) voor de Python-API en de trust boundary.
 
+### Cohn–Gonçalves tekenonzekerheid
+
+De derde probleemplugin bevat Gaussian-mixture discovery, collocatie, een
+globale Laguerre-LP, een hybride A/B-diagnose en exacte Sturm-certificering:
+
+```bash
+neuracert-sign-laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
+neuracert-sign-certify --json candidate.json --out certificate.json
+neuracert-sign-verify certificate.json
+```
+
+Zie [docs/sign-uncertainty.md](docs/sign-uncertainty.md) voor alle discovery-
+en diagnosecommando's en de scheiding tussen discovery, certificering en
+onafhankelijke verificatie.
+
 ## Packagestructuur
 
 ```text
@@ -175,7 +190,8 @@ neuracert/
 ├── pipeline.py
 └── problems/
     ├── maynard/          # Maynard-plugin en legacy adapters
-    └── delsarte/         # niveau-1 en hogere LP, certificering en losse verifier
+    ├── delsarte/         # niveau-1 en hogere LP, certificering en losse verifier
+    └── sign_uncertainty/ # Gaussian/Laguerre discovery en exacte Sturm-verificatie
 
 maynard_tools/            # backwards-compatible gespecialiseerde implementatie
 ├── discovery/
