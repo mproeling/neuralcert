@@ -601,8 +601,6 @@ def export(path, k, mus, cs, v, R, grid, prune=1e-12, eps=0.0):
         f"{c}^-{j}*{w}" for c, j, w in items)
     h = hashlib.sha256(canon.encode()).hexdigest()
     # Exact integers are stored as decimal Unicode, never dtype=object.
-    # NumPy otherwise promotes sufficiently large Python integers to object
-    # arrays, which require pickle on load even though the container is NPZ.
     exact_strings = lambda values: np.asarray([str(value) for value in values])
     np.savez(path, k=k, epsilon_num=str(eps_q.numerator),
              epsilon_den=str(eps_q.denominator), mu=np.asarray(mus, dtype=np.int64),

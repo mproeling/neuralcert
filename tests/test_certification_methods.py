@@ -100,3 +100,25 @@ def test_poly_discovery_schema_is_detected(tmp_path) -> None:
     np.savez(path, k=10, R=2.0, c=[1.0], x_fine=[0.0, 1.0],
              g_fine=[[1.0], [0.0]])
     assert _detect_npz_method(path) == "poly"
+
+
+def test_ratio_loader_ignores_legacy_object_arrays(tmp_path) -> None:
+    canonical = "k=10|1/5^-1*1"
+    path = tmp_path / "legacy-object-arrays.npz"
+    huge = 10 ** 100
+    np.savez(
+        path,
+        k=10,
+        c_num=np.asarray([huge], dtype=object),
+        c_den=np.asarray([huge * 5], dtype=object),
+        power=np.asarray([1], dtype=object),
+        w_num=np.asarray([huge], dtype=object),
+        w_den=np.asarray([huge], dtype=object),
+        R_discovery=2.0,
+        ceiling=3.0,
+        sha256=hashlib.sha256(canonical.encode()).hexdigest(),
+        canonical=canonical,
+    )
+    loaded = ratio.load(path)
+    assert loaded["cs"] == [ratio.Fraction(1, 5)]
+    assert loaded["ws"] == [ratio.Fraction(1)]

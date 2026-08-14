@@ -31,7 +31,7 @@ def test_epsilon_is_hashed_and_exported_for_certification_guard(tmp_path) -> Non
     value, vector, _ = rayleigh([0.2], [1], 51, grid, eps=0.01)
     path = tmp_path / "epsilon.npz"
     export(path, 51, [1], [0.2], vector, value, grid, eps=0.01)
-    with np.load(path, allow_pickle=False) as archive:
+    with np.load(path) as archive:
         assert all(archive[name].dtype.kind != "O" for name in archive.files)
     document = load(path)
     assert document["epsilon"] == Fraction(1, 100)

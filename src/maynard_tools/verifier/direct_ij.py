@@ -101,45 +101,45 @@ def parse_fraction(s: str) -> Fraction:
 
 
 def load_npz(path: str):
-    try:
-        with np.load(path, allow_pickle=False) as archive:
-            d = {name: archive[name] for name in archive.files}
-    except ValueError as exc:
-        raise ValueError(
-            f"{path!s} is not a pickle-free NumPy NPZ export; re-export it "
-            "with the current ratio discovery") from exc
-    required = {"k", "c_num", "c_den", "power", "canonical", "sha256"}
-    missing = required.difference(d)
-    if missing:
-        raise ValueError(f"npz missing required fields: {sorted(missing)}")
-
-    canonical = str(d["canonical"])
+    with np.load(path) as archive:
+        required = {"k", "canonical", "sha256"}
+        missing = required.difference(archive.files)
+        if missing:
+            raise ValueError(f"npz missing required fields: {sorted(missing)}")
+        canonical = str(archive["canonical"])
+        stored_sha = str(archive["sha256"])
+        stored_k = int(archive["k"])
+        reference = (float(archive["R_discovery"])
+                     if "R_discovery" in archive.files else None)
     sha = hashlib.sha256(canonical.encode()).hexdigest()
-    stored_sha = str(d["sha256"])
     if sha != stored_sha:
         raise ValueError("sha256 mismatch: .npz canonical trial has been altered")
-
-    epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
-               if "epsilon_num" in d else Fraction(0))
+    fields = canonical.split("|")
+    if not fields or not fields[0].startswith("k="):
+        raise ValueError("invalid ratio canonical record")
+    k = int(fields.pop(0).split("=", 1)[1])
+    if k != stored_k:
+        raise ValueError("canonical k disagrees with NPZ k")
+    epsilon = Fraction(0)
+    if fields and fields[0].startswith("epsilon="):
+        epsilon = Fraction(fields.pop(0).split("=", 1)[1])
     if epsilon != 0:
         raise ValueError(
             "direct-IJ verification currently supports epsilon=0 only; "
             f"this discovery export has epsilon={epsilon}")
 
-    k = int(d["k"])
-    powers = [int(x) for x in d["power"]]
+    channels = []
+    for field in fields:
+        c_text, term = field.split("^-", 1)
+        power_text, weight_text = term.split("*", 1)
+        channels.append((Fraction(c_text), int(power_text), Fraction(weight_text)))
+    powers = [channel[1] for channel in channels]
     if len(powers) != 1 or powers[0] != 1:
         raise ValueError("direct-IJ checker currently supports one power-1 channel only")
 
-    nums = list(d["c_num"])
-    dens = list(d["c_den"])
-    if len(nums) != 1:
+    if len(channels) != 1:
         raise ValueError("direct-IJ checker currently supports one channel only")
-    c = Fraction(int(nums[0]), int(dens[0]))
-
-    reference = None
-    if "R_discovery" in d:
-        reference = float(d["R_discovery"])
+    c = channels[0][0]
 
     return {
         "k": k,

@@ -102,7 +102,7 @@ class ModularProblem(ABC):
         """Called once per worker process before any `residues` call.
 
         Use for derived state that is expensive to build but cheap to
-        rebuild, so it need not be pickled.
+        rebuild, so it need not be serialized.
         """
 
     def describe(self) -> str:

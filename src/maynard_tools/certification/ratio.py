@@ -273,29 +273,53 @@ def certify(c_frac: Fraction, k: int, P: float = 8.0, th_far: float = 120.0,
 # ---------------------------------------------------------------------------
 # npz loading, MC diagnostic, certificate export
 # ---------------------------------------------------------------------------
+def _parse_canonical(canonical: str):
+    """Recover exact ratio channels from the signed, hashable text record."""
+    fields = canonical.split("|")
+    if not fields or not fields[0].startswith("k="):
+        raise ValueError("invalid ratio canonical record: missing k")
+    k = int(fields.pop(0).split("=", 1)[1])
+    epsilon = Fraction(0)
+    if fields and fields[0].startswith("epsilon="):
+        epsilon = Fraction(fields.pop(0).split("=", 1)[1])
+    cs, powers, weights = [], [], []
+    for field in fields:
+        try:
+            c_text, term = field.split("^-", 1)
+            power_text, weight_text = term.split("*", 1)
+            cs.append(Fraction(c_text))
+            powers.append(int(power_text))
+            weights.append(Fraction(weight_text))
+        except (ValueError, ZeroDivisionError) as exc:
+            raise ValueError(f"invalid ratio canonical channel {field!r}") from exc
+    if not cs:
+        raise ValueError("invalid ratio canonical record: no channels")
+    return k, epsilon, cs, powers, weights
+
+
 def load(path):
-    try:
-        with np.load(path, allow_pickle=False) as archive:
-            d = {name: archive[name] for name in archive.files}
-    except ValueError as exc:
-        raise ValueError(
-            f"{path!s} is not a pickle-free NumPy NPZ export; re-export it "
-            "with `neuracert discover --method ratio --export ...`") from exc
-    canon = str(d["canonical"])
+    # Only numeric/Unicode metadata is accessed. Legacy object arrays with
+    # exact integers may remain in the archive, but are deliberately ignored:
+    # the same exact values are reconstructed from the hashed canonical text.
+    with np.load(path) as archive:
+        required = {"k", "canonical", "sha256", "R_discovery", "ceiling"}
+        missing = required.difference(archive.files)
+        if missing:
+            raise ValueError(f"npz missing required fields: {sorted(missing)}")
+        canon = str(archive["canonical"])
+        stored_hash = str(archive["sha256"])
+        stored_k = int(archive["k"])
+        discovery = float(archive["R_discovery"])
+        ceiling = float(archive["ceiling"])
     got = hashlib.sha256(canon.encode()).hexdigest()
-    if got != str(d["sha256"]):
+    if got != stored_hash:
         raise ValueError("sha256 mismatch: the .npz has been altered")
-    epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
-               if "epsilon_num" in d else Fraction(0))
-    return dict(k=int(d["k"]), epsilon=epsilon,
-                cs=[Fraction(int(a), int(b))
-                    for a, b in zip(d["c_num"], d["c_den"])],
-                ws=[Fraction(int(a), int(b))
-                    for a, b in zip(d["w_num"], d["w_den"])],
-                powers=[int(p) for p in d["power"]],
+    k, epsilon, cs, powers, weights = _parse_canonical(canon)
+    if k != stored_k:
+        raise ValueError(f"canonical k={k} disagrees with NPZ k={stored_k}")
+    return dict(k=k, epsilon=epsilon, cs=cs, ws=weights, powers=powers,
                 canonical=canon, sha=got,
-                R_discovery=float(d["R_discovery"]),
-                ceiling=float(d["ceiling"]))
+                R_discovery=discovery, ceiling=ceiling)
 
 
 def monte_carlo(c_frac, k, nsamp=40000, seed=0, max_n=4_000_000):

@@ -45,11 +45,11 @@ def _npz_path(argv: Sequence[str]) -> Path | None:
 
 
 def _detect_npz_method(path: Path) -> str:
-    """Identify a pickle-free discovery schema from its array names."""
+    """Identify a discovery schema from ZIP member names only."""
     import numpy as np
 
     try:
-        with np.load(path, allow_pickle=False) as archive:
+        with np.load(path) as archive:
             names = set(archive.files)
     except (OSError, ValueError) as exc:
         raise ValueError(f"cannot inspect NumPy NPZ discovery export {path}: {exc}") from exc
