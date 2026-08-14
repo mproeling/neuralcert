@@ -600,13 +600,17 @@ def export(path, k, mus, cs, v, R, grid, prune=1e-12, eps=0.0):
     canon = f"k={k}|{eps_tag}" + "|".join(
         f"{c}^-{j}*{w}" for c, j, w in items)
     h = hashlib.sha256(canon.encode()).hexdigest()
-    np.savez(path, k=k, epsilon_num=eps_q.numerator,
-             epsilon_den=eps_q.denominator, mu=np.array(mus),
-             c_num=[it[0].numerator for it in items],
-             c_den=[it[0].denominator for it in items],
+    # Exact integers are stored as decimal Unicode, never dtype=object.
+    # NumPy otherwise promotes sufficiently large Python integers to object
+    # arrays, which require pickle on load even though the container is NPZ.
+    exact_strings = lambda values: np.asarray([str(value) for value in values])
+    np.savez(path, k=k, epsilon_num=str(eps_q.numerator),
+             epsilon_den=str(eps_q.denominator), mu=np.asarray(mus, dtype=np.int64),
+             c_num=exact_strings(it[0].numerator for it in items),
+             c_den=exact_strings(it[0].denominator for it in items),
              power=[it[1] for it in items],
-             w_num=[it[2].numerator for it in items],
-             w_den=[it[2].denominator for it in items],
+             w_num=exact_strings(it[2].numerator for it in items),
+             w_den=exact_strings(it[2].denominator for it in items),
              R_discovery=R, ceiling=ceiling(k), sha256=h, canonical=canon)
     kept_idx = list(map(int, np.flatnonzero(keep)))
     print(f"  export keep indices (by |v|): {kept_idx}")

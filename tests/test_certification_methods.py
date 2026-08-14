@@ -6,7 +6,7 @@ import hashlib
 
 import numpy as np
 
-from maynard_tools.certification.cli import METHODS, _dispatch_parser
+from maynard_tools.certification.cli import METHODS, _detect_npz_method, _dispatch_parser
 from maynard_tools.certification import ratio
 
 
@@ -92,3 +92,11 @@ def test_ratio_loads_discovery_export_schema(tmp_path) -> None:
     assert loaded["epsilon"] == 0
     assert loaded["cs"] == [ratio.Fraction(1, 5)]
     assert loaded["powers"] == [1]
+    assert _detect_npz_method(path) == "ratio"
+
+
+def test_poly_discovery_schema_is_detected(tmp_path) -> None:
+    path = tmp_path / "poly.npz"
+    np.savez(path, k=10, R=2.0, c=[1.0], x_fine=[0.0, 1.0],
+             g_fine=[[1.0], [0.0]])
+    assert _detect_npz_method(path) == "poly"

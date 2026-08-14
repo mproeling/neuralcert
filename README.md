@@ -139,6 +139,10 @@ De ratio-certifier accepteert discovery-exports ook expliciet via `--npz`:
 neuracert certify --method ratio --npz k650000000_single.npz
 ```
 
+Bij `neuracert certify --npz bestand.npz` wordt de methode automatisch uit het
+pickle-vrije NPZ-schema herkend. Ratio-exports bevatten uitsluitend numerieke
+of Unicode-arrays en worden met `allow_pickle=False` ingelezen.
+
 Deze backend gebruikt de v6 Arb-route met directed rounding end-to-end. De
 NPZ-inhoud en SHA-256 worden vóór certificering gecontroleerd.
 

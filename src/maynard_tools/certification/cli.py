@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 
 METHODS = ("poly", "ratio")
@@ -30,6 +31,38 @@ def _method_was_explicit(argv: Sequence[str]) -> bool:
     return any(arg == "--method" or arg.startswith("--method=") for arg in argv)
 
 
+def _npz_path(argv: Sequence[str]) -> Path | None:
+    """Return a supplied NPZ path without consuming backend arguments."""
+    for index, argument in enumerate(argv):
+        if argument == "--npz" and index + 1 < len(argv):
+            return Path(argv[index + 1])
+        if argument.startswith("--npz="):
+            return Path(argument.split("=", 1)[1])
+    for argument in argv:
+        if not argument.startswith("-") and argument.lower().endswith(".npz"):
+            return Path(argument)
+    return None
+
+
+def _detect_npz_method(path: Path) -> str:
+    """Identify a pickle-free discovery schema from its array names."""
+    import numpy as np
+
+    try:
+        with np.load(path, allow_pickle=False) as archive:
+            names = set(archive.files)
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"cannot inspect NumPy NPZ discovery export {path}: {exc}") from exc
+    ratio = {"canonical", "sha256", "c_num", "c_den", "power"}
+    poly = {"x_fine", "g_fine", "c", "R"}
+    if ratio <= names:
+        return "ratio"
+    if poly <= names:
+        return "poly"
+    raise ValueError(
+        f"unrecognised discovery NPZ schema in {path}; fields: {sorted(names)}")
+
+
 def _print_overview() -> None:
     print(
         "usage: maynard-certify [--method {poly,ratio}] [method options]\n\n"
@@ -46,6 +79,11 @@ def main(argv: Sequence[str] | None = None) -> int | None:
     forwarded = list(sys.argv[1:] if argv is None else argv)
     explicit_method = _method_was_explicit(forwarded)
     options, method_argv = _dispatch_parser().parse_known_args(forwarded)
+
+    if not explicit_method:
+        path = _npz_path(method_argv)
+        if path is not None and path.exists():
+            options.method = _detect_npz_method(path)
 
     if any(arg in ("-h", "--help") for arg in method_argv) and not explicit_method:
         _print_overview()
@@ -66,4 +104,3 @@ def main(argv: Sequence[str] | None = None) -> int | None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

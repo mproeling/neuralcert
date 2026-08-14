@@ -101,9 +101,15 @@ def parse_fraction(s: str) -> Fraction:
 
 
 def load_npz(path: str):
-    d = np.load(path, allow_pickle=True)
+    try:
+        with np.load(path, allow_pickle=False) as archive:
+            d = {name: archive[name] for name in archive.files}
+    except ValueError as exc:
+        raise ValueError(
+            f"{path!s} is not a pickle-free NumPy NPZ export; re-export it "
+            "with the current ratio discovery") from exc
     required = {"k", "c_num", "c_den", "power", "canonical", "sha256"}
-    missing = required.difference(d.files)
+    missing = required.difference(d)
     if missing:
         raise ValueError(f"npz missing required fields: {sorted(missing)}")
 
@@ -114,7 +120,7 @@ def load_npz(path: str):
         raise ValueError("sha256 mismatch: .npz canonical trial has been altered")
 
     epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
-               if "epsilon_num" in d.files else Fraction(0))
+               if "epsilon_num" in d else Fraction(0))
     if epsilon != 0:
         raise ValueError(
             "direct-IJ verification currently supports epsilon=0 only; "
@@ -132,7 +138,7 @@ def load_npz(path: str):
     c = Fraction(int(nums[0]), int(dens[0]))
 
     reference = None
-    if "R_discovery" in d.files:
+    if "R_discovery" in d:
         reference = float(d["R_discovery"])
 
     return {

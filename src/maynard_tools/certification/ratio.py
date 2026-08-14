@@ -274,13 +274,19 @@ def certify(c_frac: Fraction, k: int, P: float = 8.0, th_far: float = 120.0,
 # npz loading, MC diagnostic, certificate export
 # ---------------------------------------------------------------------------
 def load(path):
-    d = np.load(path, allow_pickle=True)
+    try:
+        with np.load(path, allow_pickle=False) as archive:
+            d = {name: archive[name] for name in archive.files}
+    except ValueError as exc:
+        raise ValueError(
+            f"{path!s} is not a pickle-free NumPy NPZ export; re-export it "
+            "with `neuracert discover --method ratio --export ...`") from exc
     canon = str(d["canonical"])
     got = hashlib.sha256(canon.encode()).hexdigest()
     if got != str(d["sha256"]):
         raise ValueError("sha256 mismatch: the .npz has been altered")
     epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
-               if "epsilon_num" in d.files else Fraction(0))
+               if "epsilon_num" in d else Fraction(0))
     return dict(k=int(d["k"]), epsilon=epsilon,
                 cs=[Fraction(int(a), int(b))
                     for a, b in zip(d["c_num"], d["c_den"])],
