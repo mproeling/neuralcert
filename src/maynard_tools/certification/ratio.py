@@ -279,7 +279,9 @@ def load(path):
     got = hashlib.sha256(canon.encode()).hexdigest()
     if got != str(d["sha256"]):
         raise ValueError("sha256 mismatch: the .npz has been altered")
-    return dict(k=int(d["k"]),
+    epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
+               if "epsilon_num" in d.files else Fraction(0))
+    return dict(k=int(d["k"]), epsilon=epsilon,
                 cs=[Fraction(int(a), int(b))
                     for a, b in zip(d["c_num"], d["c_den"])],
                 ws=[Fraction(int(a), int(b))
@@ -394,6 +396,10 @@ def main(argv=None):
     print(f"trial function : {d['canonical'][:88]}")
     print(f"  sha256       = {d['sha'][:16]}...  (verified)")
     print(f"  k            = {d['k']}   R_discovery = {d['R_discovery']:.10f}")
+    if d["epsilon"] != 0:
+        raise NotImplementedError(
+            "ratio certification currently supports epsilon=0 only; "
+            f"this discovery export has epsilon={d['epsilon']}")
     if len(d["cs"]) != 1 or d["powers"][0] != 1:
         raise NotImplementedError("certify_v6 handles one power-1 channel")
 

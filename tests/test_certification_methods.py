@@ -47,6 +47,7 @@ def test_ratio_main_accepts_discovery_npz_option(monkeypatch) -> None:
             "canonical": "k=10|1/5^-1*1",
             "sha": "0" * 64,
             "k": 10,
+            "epsilon": ratio.Fraction(0),
             "cs": [ratio.Fraction(1, 5)],
             "ws": [ratio.Fraction(1)],
             "powers": [1],
@@ -88,5 +89,6 @@ def test_ratio_loads_discovery_export_schema(tmp_path) -> None:
     )
     loaded = ratio.load(path)
     assert loaded["k"] == 10
+    assert loaded["epsilon"] == 0
     assert loaded["cs"] == [ratio.Fraction(1, 5)]
     assert loaded["powers"] == [1]

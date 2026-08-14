@@ -113,6 +113,13 @@ def load_npz(path: str):
     if sha != stored_sha:
         raise ValueError("sha256 mismatch: .npz canonical trial has been altered")
 
+    epsilon = (Fraction(int(d["epsilon_num"]), int(d["epsilon_den"]))
+               if "epsilon_num" in d.files else Fraction(0))
+    if epsilon != 0:
+        raise ValueError(
+            "direct-IJ verification currently supports epsilon=0 only; "
+            f"this discovery export has epsilon={epsilon}")
+
     k = int(d["k"])
     powers = [int(x) for x in d["power"]]
     if len(powers) != 1 or powers[0] != 1:
@@ -132,6 +139,7 @@ def load_npz(path: str):
         "k": k,
         "c": c,
         "reference": reference,
+        "epsilon": epsilon,
         "canonical": canonical,
         "sha256": sha,
     }

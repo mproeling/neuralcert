@@ -95,13 +95,35 @@ Wanneer `--export PAD` is opgegeven, wordt het NPZ-bestand altijd geschreven.
 Een mislukte numerieke refinement gate geeft daarbij een duidelijke waarschuwing
 in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
 
-`neuracert discover` ondersteunt twee discovery-families. `--method poly` is de
-bestaande neurale pipeline en blijft de standaard voor achterwaartse
-compatibiliteit. `--method ratio` gebruikt de clustered confluent-ratio basis:
+`neuracert discover` ondersteunt twee methodologische families:
+
+`--method poly`
+: Polynomial channels: symmetric-polynomial trial functions optimised by Adam
+  followed by L-BFGS, certified by exact multimodular (CRT) evaluation of the
+  Gram forms. Strongest at small `k`, where the extremal function is genuinely
+  high-dimensional; cost grows with degree and channel count.
+
+`--method ratio`
+: Rational channels `g(t) = 1/(c + (k-1)t)`: a one-parameter family evaluated
+  analytically via its characteristic function and a single FFT, certified in
+  Arb ball arithmetic. Cost independent of `k`, so it reaches `k ~ 1e9`, and
+  it attains `log k - 0.334 + o(1)` asymptotically.
 
 ```bash
 neuracert discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
 ```
+
+De ratio-discovery ondersteunt ook de vergrote simplex met `--epsilon`:
+
+```bash
+neuracert discover --method ratio --k 201 --mu 1 --epsilon 0.01 \
+  --export ratio-epsilon.npz
+```
+
+Een epsilon-export legt epsilon expliciet in het NPZ-bestand en de hash vast.
+De huidige v6 Arb-certifier ondersteunt alleen `epsilon=0` en weigert een
+epsilon-export daarom expliciet; hij zal die nooit stilzwijgend als het gewone
+Maynard-probleem certificeren.
 
 Dezelfde indeling geldt voor de hoofd-certificerings-CLI. De bestaande
 Karatsuba-code valt onder `poly`; de nieuwe Arb-certifier valt onder `ratio`:

@@ -1,9 +1,8 @@
 """Unified command-line dispatcher for discovery methods.
 
-``poly`` is the neural polynomial/channel search that was historically exposed
-directly as ``maynard-discover``.  ``ratio`` is the clustered confluent-ratio
-basis.  The dispatcher removes only its own ``--method`` option and leaves the
-remaining arguments untouched for the selected implementation.
+``poly`` uses symmetric-polynomial channels; ``ratio`` uses rational channels
+whose cost is independent of k. The dispatcher removes only its own
+``--method`` option and leaves all method-specific arguments untouched.
 """
 
 from __future__ import annotations
@@ -15,6 +14,19 @@ from collections.abc import Sequence
 
 METHODS = ("poly", "ratio")
 
+POLY_DESCRIPTION = (
+    "Polynomial channels: symmetric-polynomial trial functions optimised by "
+    "Adam followed by L-BFGS, certified by exact multimodular (CRT) evaluation "
+    "of the Gram forms. Strongest at small k, where the extremal function is "
+    "genuinely high-dimensional; cost grows with degree and channel count."
+)
+RATIO_DESCRIPTION = (
+    "Rational channels g(t) = 1/(c + (k-1)t): a one-parameter family evaluated "
+    "analytically via its characteristic function and a single FFT, certified "
+    "in Arb ball arithmetic. Cost independent of k, so it reaches k ~ 1e9, and "
+    "it attains log k - 0.334 + o(1) asymptotically."
+)
+
 
 def _dispatch_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(add_help=False)
@@ -22,7 +34,7 @@ def _dispatch_parser() -> argparse.ArgumentParser:
         "--method",
         choices=METHODS,
         default="poly",
-        help="discovery family: poly (default) or ratio",
+        help="discovery family: poly (default) or ratio; see method help for details",
     )
     return parser
 
@@ -33,12 +45,11 @@ def _method_was_explicit(argv: Sequence[str]) -> bool:
 
 def _print_overview() -> None:
     print(
-        "usage: maynard-discover [--method {poly,ratio}] [method options]\n\n"
+        "usage: neuracert discover [--method {poly,ratio}] [method options]\n\n"
         "Discovery methods:\n"
-        "  poly   Neural separable-channel discovery (default)\n"
-        "  ratio  Clustered confluent-ratio basis discovery\n\n"
-        "Use 'maynard-discover --method METHOD --help' for method-specific "
-        "options."
+        f"\n--method poly\n    {POLY_DESCRIPTION}\n"
+        f"\n--method ratio\n    {RATIO_DESCRIPTION}\n\n"
+        "Use 'neuracert discover --method METHOD --help' for method-specific options."
     )
 
 
@@ -74,4 +85,3 @@ def main(argv: Sequence[str] | None = None) -> int | None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

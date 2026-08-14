@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from maynard_tools.discovery.cli import METHODS, _dispatch_parser
+from maynard_tools.discovery.cli import (
+    METHODS,
+    POLY_DESCRIPTION,
+    RATIO_DESCRIPTION,
+    _dispatch_parser,
+)
 
 
 def test_discovery_methods_are_public() -> None:
@@ -21,3 +26,11 @@ def test_ratio_selection_is_not_forwarded() -> None:
     )
     assert options.method == "ratio"
     assert forwarded == ["--k", "51", "--mu", "2,1"]
+
+
+def test_method_descriptions_explain_the_tradeoff() -> None:
+    assert "Adam followed by L-BFGS" in POLY_DESCRIPTION
+    assert "exact multimodular (CRT)" in POLY_DESCRIPTION
+    assert "single FFT" in RATIO_DESCRIPTION
+    assert "k ~ 1e9" in RATIO_DESCRIPTION
+    assert "log k - 0.334 + o(1)" in RATIO_DESCRIPTION

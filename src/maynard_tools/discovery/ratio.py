@@ -71,18 +71,18 @@ CROSS_AMP_MAX = 1e10      # partial-fraction cancellation budget
 
 
 # ---------------------------------------------------------------------------
-def _cf_simple(th: np.ndarray, c: float, n: int) -> np.ndarray:
-    """F_1 = int_0^1 e^{i th t}/(c + n t) dt."""
+def _cf_simple(th: np.ndarray, c: float, n: int, L: float = 1.0) -> np.ndarray:
+    """F_1 = int_0^L e^{i th t}/(c + n t) dt,  L = 1 + eps."""
     th = np.asarray(th, float)
     out = np.empty(th.shape, dtype=complex)
     z = np.abs(th)
     small = z < 1e-12
     if np.any(small):
-        out[small] = math.log1p(n / c) / n
+        out[small] = math.log1p(n * L / c) / n
     big = ~small
     if np.any(big):
         lam = z[big] / n
-        Sib, Cib = sici(lam * (c + n))
+        Sib, Cib = sici(lam * (c + n * L))
         Sia, Cia = sici(lam * c)
         val = np.exp(-1j * lam * c) / n * ((Cib - Cia) + 1j * (Sib - Sia))
         out[big] = np.where(th[big] < 0, np.conj(val), val)
@@ -97,10 +97,13 @@ def theta_stable(n: int, pmax: int, budget: float = AMP_BUDGET) -> float:
     return float(n * (budget * math.factorial(e)) ** (1.0 / e))
 
 
-def F_powers(th: np.ndarray, c: float, n: int, pmax: int):
-    """F_1..F_pmax on the given th (caller must mask to |th| <= theta_stable)."""
-    F = [None, _cf_simple(th, c, n)]
-    e1, cn = np.exp(1j * np.asarray(th, float)), c + n
+def F_powers(th: np.ndarray, c: float, n: int, pmax: int, L: float = 1.0):
+    """F_1..F_pmax on [0, L]; caller must mask to |th| <= theta_stable.
+
+      F_p = -[e^{i th L}(c+nL)^{1-p} - c^{1-p} - i th F_{p-1}] / (n(p-1)).
+    """
+    F = [None, _cf_simple(th, c, n, L)]
+    e1, cn = np.exp(1j * np.asarray(th, float) * L), c + n * L
     for p in range(2, pmax + 1):
         F.append(-(e1 * cn ** (1 - p) - c ** (1 - p)
                    - 1j * th * F[p - 1]) / (n * (p - 1)))
@@ -141,12 +144,12 @@ class Grid:
         return 2.0 * np.pi * np.fft.fftfreq(self.N, d=self.ds)
 
 
-def _pair_functions(ca, cb, j, l, n):
-    """(cf(th), H(y), M1) builders for phi_{a,j} phi_{b,l}."""
-    one = np.array([1.0])
+def _pair_functions(ca, cb, j, l, n, L: float = 1.0):
+    """(cf(th), H(y), M1) builders for phi_{a,j} phi_{b,l} on [0, L]."""
+    one = np.array([L])
     if ca == cb:
         q = j + l
-        cf = lambda th: F_powers(th, ca, n, q)[q]
+        cf = lambda th: F_powers(th, ca, n, q, L)[q]
         H = lambda y: _pow_int(ca, n, y, q)
         M1 = float((_pow_int(ca, n, one, q - 1) - ca * _pow_int(ca, n, one, q))[0]) / n
         amp = 1.0
@@ -158,7 +161,7 @@ def _pair_functions(ca, cb, j, l, n):
                     np.max(np.abs(B) * cb ** -np.arange(1, l + 1))) / scale)
 
     def cf(th):
-        Fa, Fb = F_powers(th, ca, n, j), F_powers(th, cb, n, l)
+        Fa, Fb = F_powers(th, ca, n, j, L), F_powers(th, cb, n, l, L)
         return sum(A[r - 1] * Fa[r] for r in range(1, j + 1)) + \
             sum(B[s - 1] * Fb[s] for s in range(1, l + 1))
 
@@ -175,9 +178,24 @@ def _pair_functions(ca, cb, j, l, n):
 
 
 @lru_cache(maxsize=1 << 14)
-def _pair_entry(ca, cb, j, l, k, N, P):
+def _pair_entry(ca, cb, j, l, k, N, P, eps=0.0):
+    """One Gram pair for the eps-enlarged problem.
+
+    F lives on (1+eps)R_k.  With L = 1+eps, w = (c+nt)^{-2} on [0,L],
+    m0 = int_0^L w, and S a sum of n i.i.d. draws from w/m0:
+
+        A_jl = m0^n E[ H_jl(L-S) 1_{S <= L} ]                 (denominator)
+        B_jl = m0^n E[ G_j(L-S) G_l(L-S) 1_{S <= 1-eps} ]     (numerator)
+
+    The only structural change from eps = 0 is the asymmetry of the two
+    indicators: F may occupy the enlarged simplex, but prime-detecting
+    credit is collected only where the other coordinates satisfy
+    s <= 1-eps = L-2eps.  In rho = L-S coordinates the numerator integral
+    therefore starts at rho = 2eps.  The m0^n factor still cancels.
+    """
     n = k - 1
-    cf_f, H_f, M1, amp, pmax = _pair_functions(ca, cb, j, l, n)
+    L = 1.0 + eps
+    cf_f, H_f, M1, amp, pmax = _pair_functions(ca, cb, j, l, n, L)
     if amp > CROSS_AMP_MAX:
         raise FloatingPointError(
             f"cross-cluster cancellation {amp:.2e} for ({j},{l}) at "
@@ -211,15 +229,40 @@ def _pair_entry(ca, cb, j, l, k, N, P):
             abs(meanp - mean_exact) > 1e-6 * max(1.0, mean_exact):
         raise FloatingPointError(
             f"moment check: mass={mass:.8f}, mean={meanp:.6f} vs {mean_exact:.6f}")
-    keep = sg <= 1.0
-    s1, y = sg[keep], 1.0 - sg[keep]
-    pk = np.clip(p[keep], 0.0, None)
-    neg = float(np.trapezoid(np.clip(-p[keep], 0.0, None), s1))
-    pos = float(np.trapezoid(pk, s1))
-    if pos <= 0.0 or neg > 1e-6 * pos:
-        raise FloatingPointError(f"noise floor: P(S<1)~{pos:.3e}, neg {neg:.3e}")
+    # NOISE FLOOR, applied to BOTH domains.  The FFT reconstructs p_S to an
+    # absolute accuracy ~ eps_mach * max|p|; once the surviving probability
+    # mass falls to that level, IA and IB are round-off and their RATIO is
+    # arbitrary -- which is exactly how a large-c configuration can report a
+    # Rayleigh quotient far above anything admissible.  Guarding only the
+    # denominator domain is not enough: at eps > 0 the numerator lives on the
+    # strictly smaller region S <= 1-eps and fails first.
+    floor = 1e-11 * float(np.max(np.abs(p))) * L
+
+    def _mass(mask, label):
+        s_, p_ = sg[mask], p[mask]
+        pk_ = np.clip(p_, 0.0, None)
+        neg_ = float(np.trapezoid(np.clip(-p_, 0.0, None), s_))
+        pos_ = float(np.trapezoid(pk_, s_))
+        if pos_ <= floor or neg_ > 1e-6 * pos_:
+            raise FloatingPointError(
+                f"noise floor ({label}): mass~{pos_:.3e} <= floor {floor:.3e}"
+                f" or negative mass {neg_:.3e}")
+        return s_, pk_
+
+    keep = sg <= L                        # denominator: S <= 1 + eps
+    if not keep.any():
+        raise FloatingPointError("empty denominator domain")
+    s1, pk = _mass(keep, "A")
+    y = L - s1
     IA = float(np.trapezoid(pk * H_f(y), s1))
-    IB = float(np.trapezoid(pk * _pow_int(ca, n, y, j) * _pow_int(cb, n, y, l), s1))
+
+    keepB = sg <= L - 2.0 * eps           # numerator: S <= 1 - eps
+    if not keepB.any():
+        raise FloatingPointError("empty numerator domain (eps too large)")
+    s1B, pkB = _mass(keepB, "B")
+    yB = L - s1B
+    IB = float(np.trapezoid(
+        pkB * _pow_int(ca, n, yB, j) * _pow_int(cb, n, yB, l), s1B))
     if IA <= 0 or IB <= 0:
         raise FloatingPointError("non-positive pair integral")
     return n * math.log(m0) + math.log(IA), n * math.log(m0) + math.log(IB)
@@ -229,7 +272,7 @@ def channels(cs, mus):
     return [(float(c), j) for c, mu in zip(cs, mus) for j in range(1, mu + 1)]
 
 
-def gram(cs, mus, k, grid):
+def gram(cs, mus, k, grid, eps=0.0):
     ch = channels(cs, mus)
     M = len(ch)
     lA = np.empty((M, M)); lB = np.empty((M, M))
@@ -238,7 +281,7 @@ def gram(cs, mus, k, grid):
             (ca, ja), (cb, lb) = ch[i], ch[j2]
             if ca > cb:
                 (ca, ja), (cb, lb) = (cb, lb), (ca, ja)
-            a, b = _pair_entry(ca, cb, ja, lb, k, grid.N, grid.P)
+            a, b = _pair_entry(ca, cb, ja, lb, k, grid.N, grid.P, eps)
             lA[i, j2] = lA[j2, i] = a
             lB[i, j2] = lB[j2, i] = b
     return lA, lB
@@ -255,9 +298,9 @@ def _precond(lA, lB):
     return 0.5 * (A + A.T), 0.5 * (B + B.T)
 
 
-def rayleigh(cs, mus, k, grid=None, rank_tol=1e-10, gate=True):
+def rayleigh(cs, mus, k, grid=None, rank_tol=1e-10, gate=True, eps=0.0):
     grid = grid or Grid()
-    A, B = _precond(*gram(cs, mus, k, grid))
+    A, B = _precond(*gram(cs, mus, k, grid, eps))
     lam, Q = np.linalg.eigh(A)
     keep = lam > rank_tol * lam.max()
     W = Q[:, keep] / np.sqrt(lam[keep])
@@ -265,8 +308,12 @@ def rayleigh(cs, mus, k, grid=None, rank_tol=1e-10, gate=True):
     ev, vr = np.linalg.eigh(0.5 * (Br + Br.T))
     i = int(np.argmax(ev))
     R = k * float(ev[i])
-    if gate and R > ceiling(k) * (1 + 1e-9):
-        raise FloatingPointError(f"R={R:.6f} exceeds ceiling {ceiling(k):.6f}")
+    # The tight ceiling M_k < k/(k-1) log k holds only at eps = 0; the
+    # enlarged problem legitimately exceeds it -- that is the point of the
+    # trick.  For eps > 0 fall back to the crude but valid R <= k.
+    lim = ceiling(k) if eps == 0.0 else float(k)
+    if gate and R > lim * (1 + 1e-9):
+        raise FloatingPointError(f"R={R:.6f} exceeds bound {lim:.6f}")
     v = W @ vr[:, i]
     return R, v / np.max(np.abs(v)), dict(
         rank=int(keep.sum()), M=len(lam),
@@ -274,8 +321,8 @@ def rayleigh(cs, mus, k, grid=None, rank_tol=1e-10, gate=True):
         cond_kept=float(lam[keep].max() / lam[keep].min()))
 
 
-def rayleigh_at(cs, mus, v, k, grid):
-    A, B = _precond(*gram(cs, mus, k, grid))
+def rayleigh_at(cs, mus, v, k, grid, eps=0.0):
+    A, B = _precond(*gram(cs, mus, k, grid, eps))
     v = np.asarray(v, float)
     return k * float(v @ B @ v) / float(v @ A @ v)
 
@@ -333,7 +380,7 @@ def _scalar_min(f, u0, half=1.6, npts=41, verbose=False):
     return xb, fb
 
 
-def _grad(x, mus, k, grid, h):
+def _grad(x, mus, k, grid, h, eps=0.0):
     """R and dR/dx with PER-COORDINATE degradation.
 
     v3 returned (1e3, zeros) if ANY of the 2r perturbed evaluations tripped a
@@ -341,7 +388,7 @@ def _grad(x, mus, k, grid, h):
     were an optimum.  Here a failed side falls back to a one-sided
     difference, and only a coordinate whose both sides fail contributes zero.
     """
-    R0 = rayleigh(x_to_c(x), mus, k, grid)[0]
+    R0 = rayleigh(x_to_c(x), mus, k, grid, eps=eps)[0]
     g = np.zeros(len(x))
     nfail = 0
     for p in range(len(x)):
@@ -349,7 +396,7 @@ def _grad(x, mus, k, grid, h):
         for sgn in (+1, -1):
             xs = np.array(x, float); xs[p] += sgn * h
             try:
-                vals[sgn] = rayleigh(x_to_c(xs), mus, k, grid)[0]
+                vals[sgn] = rayleigh(x_to_c(xs), mus, k, grid, eps=eps)[0]
             except (FloatingPointError, np.linalg.LinAlgError, ValueError):
                 pass
         if +1 in vals and -1 in vals:
@@ -364,7 +411,7 @@ def _grad(x, mus, k, grid, h):
 
 
 def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
-             h=2e-3, verbose=True):
+             h=2e-3, verbose=True, eps=0.0):
     """Maximise R over the cluster base points.  Multiplicities are fixed."""
     grid = grid or Grid()
     r = len(mus)
@@ -379,7 +426,7 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
             stats["calls"] += 1
             x = np.asarray(x, float)
             try:
-                R0, g, nf = _grad(x, mus, k, grid, h)
+                R0, g, nf = _grad(x, mus, k, grid, h, eps)
                 stats["nfail"] += nf
                 stats["last_ok"] = x.copy()
                 return -R0, -g
@@ -403,7 +450,8 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
             xb, nit, msg = res.x, int(res.nit), str(res.message)
         try:
             cs = x_to_c(xb)
-            R, v, dg = rayleigh(cs, mus, k, Grid(N=grid.N * 4, P=grid.P))
+            R, v, dg = rayleigh(
+                cs, mus, k, Grid(N=grid.N * 4, P=grid.P), eps=eps)
         except (FloatingPointError, np.linalg.LinAlgError):
             continue
         moved = float(np.max(np.abs(np.log(cs / cs0))))
@@ -415,8 +463,10 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
         raise FloatingPointError("every start was rejected by the gates")
     if verbose:
         dg = best["dg"]
-        print(f"  k={k:7d} mu={list(mus)}  M={dg['M']}  R={best['R']:.6f}  "
-              f"ceiling {ceiling(k):.6f}  log k - R = {math.log(k)-best['R']:+.5f}")
+        limit = ceiling(k) if eps == 0.0 else float(k)
+        print(f"  k={k:7d} mu={list(mus)} eps={eps:g}  M={dg['M']}  "
+              f"R={best['R']:.6f}  bound {limit:.6f}  "
+              f"log k - R = {math.log(k)-best['R']:+.5f}")
         print(f"          rank {dg['rank']}/{dg['M']}  cond={dg['cond_kept']:.2e}"
               f"  c={[float(f'{x:.5g}') for x in best['cs']]}")
         print(f"          nit={best['nit']}  moved={best['moved']:.3f} in log c"
@@ -484,7 +534,7 @@ def unit_test():
     return ok
 
 
-def export(path, k, mus, cs, v, R, grid, prune=1e-12):
+def export(path, k, mus, cs, v, R, grid, prune=1e-12, eps=0.0):
     """Write an exact, hashable trial function for the certifier.
 
     Contract: for ANY fixed physical weight vector u,
@@ -506,7 +556,7 @@ def export(path, k, mus, cs, v, R, grid, prune=1e-12):
     # physical Ritz weights on that exact same grid; otherwise the diagonal
     # preconditioner would differ slightly between discovery and export.
     export_grid = Grid(N=grid.N * 4, P=grid.P)
-    lA, _ = gram(cs, mus, k, export_grid)
+    lA, _ = gram(cs, mus, k, export_grid, eps)
     d = np.diag(lA)
 
     v = np.asarray(v, float)
@@ -545,9 +595,14 @@ def export(path, k, mus, cs, v, R, grid, prune=1e-12):
 
     items = [(Fraction(c).limit_denominator(10 ** 12), j, uu)
              for (c, j), uu in zip(ch_keep, u_fracs)]
-    canon = f"k={k}|" + "|".join(f"{c}^-{j}*{w}" for c, j, w in items)
+    eps_q = Fraction(eps).limit_denominator(10 ** 12)
+    eps_tag = "" if eps_q == 0 else f"epsilon={eps_q}|"
+    canon = f"k={k}|{eps_tag}" + "|".join(
+        f"{c}^-{j}*{w}" for c, j, w in items)
     h = hashlib.sha256(canon.encode()).hexdigest()
-    np.savez(path, k=k, mu=np.array(mus), c_num=[it[0].numerator for it in items],
+    np.savez(path, k=k, epsilon_num=eps_q.numerator,
+             epsilon_den=eps_q.denominator, mu=np.array(mus),
+             c_num=[it[0].numerator for it in items],
              c_den=[it[0].denominator for it in items],
              power=[it[1] for it in items],
              w_num=[it[2].numerator for it in items],
@@ -568,6 +623,8 @@ def main():
                     help="multiplicities per cluster, e.g. 2,2,1")
     ap.add_argument("--n-fft", type=int, default=1 << 16)
     ap.add_argument("--maxiter", type=int, default=300)
+    ap.add_argument("--epsilon", "--eps", type=float, default=0.0,
+                    help="simplex enlargement epsilon (0 <= epsilon < 1)")
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument("--export", type=str, default=None,
@@ -575,16 +632,22 @@ def main():
     ap.add_argument("--export-prune", type=float, default=1e-12,
                     help="relative |v| threshold used only when exporting")
     a = ap.parse_args()
+    if not 0.0 <= a.epsilon < 1.0:
+        ap.error("--epsilon must lie in [0, 1)")
     mus = [int(z) for z in a.mu.split(",") if z.strip()]
     grid = Grid(N=a.n_fft)
     t0 = time.time()
-    R, cs, v, dg, rec = optimise(a.k, mus, grid=grid, maxiter=a.maxiter,
-                                 verbose=False)
+    R, cs, v, dg, rec = optimise(
+        a.k, mus, grid=grid, maxiter=a.maxiter, verbose=False, eps=a.epsilon)
     lk, cl = math.log(a.k), ceiling(a.k)
-    print(f"k = {a.k}   mu = {mus}   M = {dg['M']}   [{time.time()-t0:.1f}s]")
+    print(f"k = {a.k}   mu = {mus}   epsilon = {a.epsilon:g}   "
+          f"M = {dg['M']}   [{time.time()-t0:.1f}s]")
     print(f"  R          = {R:.8f}")
     print(f"  log k      = {lk:.8f}")
-    print(f"  ceiling    = {cl:.8f}   (headroom {cl - R:+.6f})")
+    if a.epsilon == 0.0:
+        print(f"  ceiling    = {cl:.8f}   (headroom {cl - R:+.6f})")
+    else:
+        print(f"  bound      = {float(a.k):.8f}   (epsilon problem; M_k ceiling not used)")
     print(f"  log k - R  = {lk - R:+.6f}")
     print(f"  c          = {[float(f'{x:.8g}') for x in cs]}")
     print(f"  weights    = {[float(f'{x:.6g}') for x in v]}")
@@ -594,21 +657,23 @@ def main():
     if rec["moved"] < 1e-3:
         print("  *** WARNING: optimiser did not move -- starting grid, not an "
               "optimum ***")
-    if R > cl:
+    if a.epsilon == 0.0 and R > cl:
         print("  *** ABOVE THE CEILING -- evaluator defect, not a discovery ***")
     if a.verify:
         print("  grid refinement at fixed c and v:")
         prev = None
         for f in (1, 2, 4, 8):
             g2 = Grid(N=grid.N * f, P=grid.P)
-            Rv = rayleigh_at(cs, mus, v, a.k, g2)
+            Rv = rayleigh_at(cs, mus, v, a.k, g2, eps=a.epsilon)
             print(f"    N = {g2.N:9d}   R = {Rv:.10f}" +
                   ("" if prev is None else f"   delta {Rv - prev:+.3e}"))
             prev = Rv
     if a.export:
-        export(a.export, a.k, mus, cs, v, R, grid, prune=a.export_prune)
+        export(a.export, a.k, mus, cs, v, R, grid, prune=a.export_prune,
+               eps=a.epsilon)
     if a.out:
-        json.dump(dict(k=a.k, mu=mus, R=R, log_k=lk, ceiling=cl,
+        json.dump(dict(k=a.k, mu=mus, epsilon=a.epsilon, R=R,
+                       log_k=lk, ceiling=(cl if a.epsilon == 0.0 else None),
                        c=list(map(float, cs)), weights=list(map(float, v)),
                        rank=dg["rank"], M=dg["M"]), open(a.out, "w"), indent=2)
         print(f"  written to {a.out}")

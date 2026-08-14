@@ -9,8 +9,8 @@ def test_top_level_packages_import() -> None:
 
     import neuracert
 
-    assert maynard_tools.__version__ == "0.9.1"
-    assert neuracert.__version__ == "0.9.1"
+    assert maynard_tools.__version__ == "0.10.0"
+    assert neuracert.__version__ == "0.10.0"
 
 
 def test_python_flint_is_a_required_dependency() -> None:
