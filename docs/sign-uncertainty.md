@@ -22,6 +22,14 @@ neuracert sign certify --json candidate.json --out certificate.json
 neuracert sign verify certificate.json
 ```
 
+The Laguerre workflow automatically repairs one or two spurious shallow
+contacts near a rung boundary by testing leave-out subsets in the square
+collocation rung. Comparisons with published constants use the precision of
+the reported decimal, so a sub-unit difference caused by rounding is labelled
+as a reproduction rather than an improvement. See
+[the Laguerre LP results appendix](sign-uncertainty-laguerre-results.md) for
+the verified bounds, reproduction commands and numerical interpretation.
+
 The hybrid diagnostic compares the Laguerre space with added Gaussian
 directions using the same convex oracle:
 

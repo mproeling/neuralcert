@@ -60,6 +60,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from itertools import combinations
 
 import numpy as np
 from scipy.optimize import linprog
@@ -439,6 +440,22 @@ def verify_poly(poly, dps: int = 60, root_extraprec: int = 260):
             "degree_effective": D}
 
 
+def compare_published(reference: float, published: float, digits: int = 6) -> str:
+    """Classify a result at the precision of the published decimal.
+
+    A difference smaller than half a unit in the last published place is a
+    reproduction, not evidence for a strict improvement.
+    """
+    half_ulp = 0.5 * 10 ** (-digits)
+    delta = published - reference
+    if delta > half_ulp:
+        return "*** BELOW PUBLISHED (genuine improvement) ***"
+    if abs(delta) <= half_ulp:
+        return ("MATCHES published to its reported precision "
+                "(reproduction, not an improvement)")
+    return f"above by {-delta:.6f}"
+
+
 # ---------------------------------------------------------------------------
 
 def lb_bck_d1() -> float:
@@ -506,6 +523,48 @@ def run(d: int, s_sign: int, n_basis: int, bisect: int, dps: int,
               + ", ".join(f"({mp.nstr(r, 8)},{m})" for r, m in v["roots"]))
         print(f"    last sign change u0 = {mp.nstr(v['u0'], 14)}")
         print(f"    rho = {mp.nstr(v['rho'], 14)}   verdict: {v['verdict']}")
+
+        # The margin LP can report one or two shallow minima as contacts near
+        # a rung boundary. If collocating every candidate disagrees with the
+        # LP estimate, try all square-rung subsets and retain the best one
+        # that independently passes the complete-root verification.
+        if (v["verdict"] != "PASS"
+                or abs(float(v["rho"]) - best["rho"]) > 1e-4 * best["rho"]):
+            square_contacts = (n_basis - 2) // 2
+            excess = len(tangs) - square_contacts
+            if 0 < excess <= 2:
+                print(f"    polish disagrees with the LP estimate; trying "
+                      f"leave-{excess}-out in the square rung "
+                      f"n_basis = {n_basis}")
+                candidates = []
+                for keep in combinations(range(len(tangs)), square_contacts):
+                    subset = [tangs[index] for index in keep]
+                    try:
+                        coeffs, candidate_poly = collocate_exact(
+                            subset, orders, d, dps=dps)
+                    except Exception:
+                        continue
+                    candidate_verdict = verify_poly(candidate_poly, dps=dps)
+                    if candidate_verdict["verdict"] == "PASS":
+                        candidates.append((float(candidate_verdict["rho"]),
+                                           subset, coeffs, candidate_verdict))
+                if candidates:
+                    candidates.sort(key=lambda candidate: candidate[0])
+                    rho, subset, coeffs, candidate_verdict = candidates[0]
+                    dropped = [tau for tau in tangs if tau not in subset]
+                    tied = sum(abs(candidate[0] - rho) < 1e-9
+                               for candidate in candidates)
+                    print(f"    dropped {np.round(np.array(dropped), 6)}; "
+                          f"{tied} of {len(candidates)} subsets tie at this value")
+                    print("    roots: " + ", ".join(
+                        f"({mp.nstr(root, 8)},{multiplicity})"
+                        for root, multiplicity in candidate_verdict["roots"]))
+                    print(f"    rho = {mp.nstr(candidate_verdict['rho'], 14)}   "
+                          f"verdict: {candidate_verdict['verdict']}")
+                    tangs, c_mp, v = subset, coeffs, candidate_verdict
+                else:
+                    print("    no leave-one-out subset verified")
+
         if v["verdict"] == "PASS":
             quote = float(v["rho"])
 
@@ -516,8 +575,8 @@ def run(d: int, s_sign: int, n_basis: int, bisect: int, dps: int,
         ref = quote if quote is not None else best["rho"]
         tag = "VERIFIED upper bound" if quote is not None else "LP estimate"
         print(f"published A_{'+' if s_sign==1 else '-'}({d}) = {pub:.6f}   "
-              f"this run ({tag}) = {ref:.9f}   "
-              f"{'*** BELOW PUBLISHED ***' if ref < pub else f'above by {ref-pub:.6f}'}")
+              f"this run ({tag}) = {ref:.9f}")
+        print(f"   {compare_published(ref, pub)}")
     if json_path and quote is not None:
         doc = {"format": "sign-uncertainty-candidate/2-laguerre",
                "d": d, "s": s_sign, "alpha": f"{d-2}/2",
@@ -562,8 +621,8 @@ def main():
         pub = published_upper(a.d, a.sign)
         if pub and v["verdict"] == "PASS":
             r = float(v["rho"])
-            print(f"published {pub:.6f}   verified {r:.9f}   "
-                  f"{'*** BELOW PUBLISHED ***' if r < pub else 'above'}")
+            print(f"published {pub:.6f}   verified {r:.9f}")
+            print(f"   {compare_published(r, pub)}")
         return
     run(a.d, a.sign, a.n_basis, a.bisect, a.dps, a.json, not a.quiet)
 

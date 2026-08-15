@@ -11,6 +11,7 @@ from neuracert.core.registry import problems
 from neuracert.problems.sign_uncertainty import Family, SignUncertaintyProblem
 from neuracert.problems.sign_uncertainty.certify import certify
 from neuracert.problems.sign_uncertainty.laguerre_basis import lag_coeffs_frac, orders_for
+from neuracert.problems.sign_uncertainty.laguerre import compare_published
 from neuracert.problems.sign_uncertainty.verifier import verify
 
 
@@ -24,6 +25,12 @@ def test_shared_exact_laguerre_basis() -> None:
     assert orders_for(4, 1) == [0, 2, 4, 6]
     assert orders_for(3, -1) == [1, 3, 5]
     assert lag_coeffs_frac(2, 2) == [1, -4, 2]
+
+
+def test_published_comparison_respects_reported_precision() -> None:
+    assert compare_published(0.572989678, 0.572990).startswith("MATCHES")
+    assert "genuine improvement" in compare_published(0.572706698, 0.572990)
+    assert compare_published(0.573000, 0.572990) == "above by 0.000010"
 
 
 def test_gaussian_family_folds_reciprocal_widths() -> None:
