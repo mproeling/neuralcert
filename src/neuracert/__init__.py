@@ -5,7 +5,7 @@ from .core import Evaluation, FunctionalProblem, Grid, PipelineResult, Problem, 
 from .pipeline import Pipeline
 from . import problems as _builtin_problems  # register bundled problem plugins
 
-__version__ = "0.10.3"
+__version__ = "0.10.4"
 
 __all__ = [
     "Evaluation",

@@ -211,6 +211,25 @@ Zie [docs/sign-uncertainty.md](docs/sign-uncertainty.md) voor alle discovery-
 en diagnosecommando's en de scheiding tussen discovery, certificering en
 onafhankelijke verificatie.
 
+### Meegeleverde datasets
+
+De Maynard eta-sweeps worden als package-resources meegeleverd en zijn dus ook
+beschikbaar na installatie uit een wheel:
+
+```python
+import csv
+from neuracert.data import dataset
+
+with dataset("maynard_geometric_eta_sweep").open(
+    "r", encoding="utf-8", newline=""
+) as stream:
+    rows = list(csv.DictReader(stream))
+```
+
+Beschikbare namen zijn `maynard_geometric_eta_sweep` en
+`maynard_R_sweep_eta`. De exacte bestandsnaam met `.csv` wordt eveneens
+geaccepteerd.
+
 ## Packagestructuur
 
 ```text
@@ -221,6 +240,7 @@ neuracert/
 ├── distill/              # rational/spectral/sparse policies
 ├── refine/               # eigen/convex/Newton/local policies
 ├── verify/               # onafhankelijke verifierinterfaces en primitives
+├── data/                 # meegeleverde reproduceerbare CSV-datasets
 ├── pipeline.py
 └── problems/
     ├── maynard/          # Maynard-plugin en legacy adapters
