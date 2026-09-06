@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import ast
+import math
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from neuralcert.core.registry import problems
 from neuralcert.problems.sign_uncertainty import Family, SignUncertaintyProblem
 from neuralcert.problems.sign_uncertainty.certify import certify
 from neuralcert.problems.sign_uncertainty.laguerre_basis import lag_coeffs_frac, orders_for
-from neuralcert.problems.sign_uncertainty.laguerre import compare_published
+from neuralcert.problems.sign_uncertainty import laguerre
+from neuralcert.problems.sign_uncertainty.laguerre import compare_published, lb_cdg
 from neuralcert.problems.sign_uncertainty.verifier import verify
 
 
@@ -31,6 +34,24 @@ def test_published_comparison_respects_reported_precision() -> None:
     assert compare_published(0.572989678, 0.572990).startswith("MATCHES")
     assert "genuine improvement" in compare_published(0.572706698, 0.572990)
     assert compare_published(0.573000, 0.572990) == "above by 0.000010"
+
+
+def test_cdg_lower_bound_uses_smallest_laguerre_root() -> None:
+    assert lb_cdg(2, 2) == pytest.approx(2.0 - math.sqrt(2.0))
+    with pytest.raises(ValueError, match="positive"):
+        lb_cdg(0, 2)
+
+
+def test_laguerre_cli_forwards_explicit_brackets(monkeypatch) -> None:
+    seen = {}
+    monkeypatch.setattr(laguerre, "run", lambda *args, **kwargs: seen.update(kwargs))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["neuralcert", "--u-lo", "0.75", "--u-hi", "4.5", "--quiet"],
+    )
+    laguerre.main()
+    assert seen["u_lo_cli"] == 0.75
+    assert seen["u_hi_cli"] == 4.5
 
 
 def test_gaussian_family_folds_reciprocal_widths() -> None:

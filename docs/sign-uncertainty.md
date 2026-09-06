@@ -30,6 +30,12 @@ as a reproduction rather than an improvement. See
 [the Laguerre LP results appendix](sign-uncertainty-laguerre-results.md) for
 the verified bounds, reproduction commands and numerical interpretation.
 
+For higher dimensions and degrees, the LP margin is bounded so grid-only
+recession directions can be found and cut instead of being misclassified as
+an infeasible problem. The solver reports the finite-degree CDG lower bound as
+a numerical tripwire and expands an infeasible upper bracket automatically.
+Use `--u-lo` and `--u-hi` to override those brackets for reproduction runs.
+
 The hybrid diagnostic compares the Laguerre space with added Gaussian
 directions using the same convex oracle:
 

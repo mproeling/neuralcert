@@ -50,9 +50,9 @@ Krein-type quadrature -- i.e. a proof of optimality WITHIN the family.  We
 print the dual multipliers' support for inspection.
 
 Usage
-    python laguerre_lp.py --d 1 --n-basis 12          # CG-comparable, deg 22
-    python laguerre_lp.py --d 1 --n-basis 24 --json out.json
-    python laguerre_lp.py --d 2 --n-basis 20
+    neuralcert sign laguerre --d 1 --n-basis 12       # CG-comparable, deg 22
+    neuralcert sign laguerre --d 1 --n-basis 24 --json out.json
+    neuralcert sign laguerre --d 2 --n-basis 20
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ def mass_vector(u0: float, orders, d: int) -> np.ndarray:
 
 
 def scan_and_cut(c: np.ndarray, u0: float, orders, alpha,
-                 tol_rel: float = 1e-12, n_scan: int = 24000):
+                 tol_rel: float = 3e-9, n_scan: int = 24000):
     """
     Locate every local minimiser of P on [u0, u_end] by sign changes of P'
     (recurrence evaluation, longdouble -- the Laguerre basis is
@@ -199,9 +199,12 @@ def scan_and_cut(c: np.ndarray, u0: float, orders, alpha,
             tail_ok, minima)
 
 
+T_CAP = 1e3
+
+
 def lp_oracle(u0: float, orders, d: int, cutpool: list,
-              n_grid: int = 1400, max_cuts: int = 70, tol_rel: float = 1e-12,
-              tol_margin: float = 1e-9):
+              n_grid: int = 1400, max_cuts: int = 70, tol_rel: float = 3e-9,
+              tol_margin: float = 1e-9, tol_stale: float = 1e-6):
     """
     Feasibility of {P in V : P(0)=0, mass=1, P >= 0 on [u0, oo)} by MARGIN
     MAXIMISATION (max t s.t. P(u_j) >= t), with three scaling decisions that
@@ -284,11 +287,21 @@ def lp_oracle(u0: float, orders, d: int, cutpool: list,
         res = linprog(c=np.concatenate([np.zeros(k), [-1.0]]),
                       A_ub=A_ub, b_ub=np.zeros(len(pts) + 1),
                       A_eq=A_eq, b_eq=np.array([0.0, 1.0]),
-                      bounds=[(None, None)] * (k + 1),
+                      # The grid relaxation can have a nonempty recession
+                      # cone at high degree: a polynomial may be nonnegative
+                      # at every grid point while dipping between them. Cap
+                      # the margin so HiGHS returns a candidate that the
+                      # continuous scan can cut instead of status=unbounded.
+                      bounds=[(None, None)] * k + [(None, T_CAP)],
                       method="highs",
                       options={"primal_feasibility_tolerance": 1e-10,
                                "dual_feasibility_tolerance": 1e-10})
-        if not res.success or res.x[-1] <= tol_margin:
+        if not res.success:
+            if res.status == 3:
+                cutpool.extend(list(np.linspace(u0, 2.0 * top + 10.0, 400)))
+                continue
+            return None, it
+        if res.x[-1] <= tol_margin:
             return None, it
         c = res.x[:k] / colscale
         viols, tangs, worst_rel, worst_u, tail_ok, minima = scan_and_cut(
@@ -310,15 +323,27 @@ def lp_oracle(u0: float, orders, d: int, cutpool: list,
             return {"coeffs": c, "tangencies": tangs, "min_rel": worst_rel,
                     "min_u": worst_u, "cuts_used": it, "minima": minima,
                     "margin": t_star}, it
-        stale = [v for v in viols if np.min(np.abs(pts - v)) < 1e-9 * max(v, 1.0)]
-        if stale:
-            # the LP already constrains these points; a violation here is
-            # solver inaccuracy, and cutting cannot fix it -- refuse loudly
+        stale = [v for v in viols
+                 if np.min(np.abs(pts - v)) < 1e-9 * max(v, 1.0)]
+        if stale and worst_rel < -tol_stale:
+            # A deep violation at an existing row is a solver failure and
+            # cannot be repaired by adding the same constraint again.
             import sys
-            print(f"      WARNING: LP solution violates its own constraint at "
-                  f"u={stale[0]:.9f} (rel {worst_rel:+.2e}); treating u0 as "
-                  f"infeasible", file=sys.stderr, flush=True)
+            print(f"      WARNING: LP violates its own row at u={stale[0]:.9f} "
+                  f"by {worst_rel:.2e}; treating u0 as infeasible",
+                  file=sys.stderr, flush=True)
             return None, it
+        if stale:
+            # At high degree, shallow residuals at constrained points are at
+            # the float64 solver's accuracy floor. Accept the LP structure;
+            # collocation and complete-root verification independently decide
+            # whether the resulting polynomial is valid.
+            t_star = float(res.x[-1])
+            tangs = sorted({round(u, 9) for r, u in minima
+                            if r <= max(10.0 * t_star, 1e-6)})
+            return {"coeffs": c, "tangencies": tangs, "min_rel": worst_rel,
+                    "min_u": worst_u, "cuts_used": it, "margin": t_star,
+                    "lp_noise": True}, it
         for v in viols[:24]:
             h = 1e-3 * max(v, 1.0)
             cutpool.extend([v - h, v, v + h])
@@ -345,6 +370,7 @@ def minimise_u0(orders, d: int, u_lo: float, u_hi: float, bisect: int = 42,
                   f"(cut pool {len(cutpool)})", flush=True)
     best["u0"] = hi
     best["rho"] = math.sqrt(hi / math.pi)
+    best["hit_lower_bracket"] = hi <= u_lo * 1.01
     return best, cutpool
 
 
@@ -458,6 +484,30 @@ def compare_published(reference: float, published: float, digits: int = 6) -> st
 
 # ---------------------------------------------------------------------------
 
+def lb_cdg(d: int, degree: int) -> float:
+    """Return the finite-degree lower bound from CDG Theorem 2.1.
+
+    For ``f = p(2u)e^-u`` with ``deg(p) <= degree`` and ``fhat(0) = 0``, the
+    last sign change satisfies ``u0 >= lambda``, where ``lambda`` is the
+    smallest root of ``L_m^(d/2-1)`` and ``m = floor(degree/2) + 1``.
+    """
+    if d < 1:
+        raise ValueError("d must be positive")
+    if degree < 0:
+        raise ValueError("degree must be nonnegative")
+    if mp is None:
+        return 0.0
+    m = degree // 2 + 1
+    alpha = mp.mpf(d) / 2 - 1
+    coefficients = [
+        mp.binomial(m + alpha, m - j) * mp.mpf(-1) ** j / mp.factorial(j)
+        for j in range(m + 1)
+    ]
+    roots = mp.polyroots(list(reversed(coefficients)), maxsteps=200,
+                         extraprec=300)
+    return float(min(mp.re(root) for root in roots))
+
+
 def lb_bck_d1() -> float:
     """[BCK] Theorem 1: A_+(1) >= 1 / (2(1+lambda)), lambda = -min sinc."""
     from scipy.optimize import brentq
@@ -467,25 +517,50 @@ def lb_bck_d1() -> float:
 
 
 def run(d: int, s_sign: int, n_basis: int, bisect: int, dps: int,
-        json_path: str | None, verbose: bool):
+        json_path: str | None, verbose: bool,
+        u_lo_cli: float | None = None, u_hi_cli: float | None = None):
     orders = orders_for(n_basis, s_sign)
     deg = max(orders)
     print(f"family: L_n^({d}/2-1)(2u) e^-u,  orders {orders[0]}..{deg} "
           f"(dim {n_basis}, degree {deg}),  d={d}, s={s_sign:+d}")
     lb = lb_bck_d1() if (d == 1 and s_sign == 1) else None
+    lam = lb_cdg(d, deg)
     if lb:
-        print(f"BCK Thm 1 lower bound: rho >= {lb:.7f}  "
-              f"(any LP 'feasible' below u0 = {math.pi*lb*lb:.6f} is a bug)")
-    u_lo = math.pi * (lb * lb) if lb else 0.35
-    u_lo = math.pi * lb ** 2 * 0.999 if lb else 0.35
-    u_hi = 1.35 if d == 1 else (math.pi * 0.80 ** 2 if d == 2 else math.pi * 1.2 ** 2)
+        print(f"BCK Thm 1 lower bound : rho >= {lb:.7f}   "
+              f"(u0 >= {math.pi*lb*lb:.6f})")
+    print(f"CDG Thm 2.1 lower bound: u0 >= lambda = {lam:.8f}   "
+          f"(rho >= {math.sqrt(lam/math.pi):.7f})   "
+          f"[smallest root of L_{deg//2+1}^({d}/2-1)]")
 
-    best, cutpool = minimise_u0(orders, d, u_lo, u_hi, bisect=bisect,
-                                verbose=verbose)
+    u_lo = max(lam, math.pi * lb ** 2 if lb else 0.0) * 0.999
+    if u_lo <= 0:
+        u_lo = 0.35
+    if u_lo_cli is not None:
+        u_lo = u_lo_cli
+    # The sublinear-degree asymptote has u0 approximately d/2. Keep a
+    # comfortable default upper bracket, while allowing exact reproduction
+    # runs to override either endpoint.
+    u_hi = (u_hi_cli if u_hi_cli is not None else
+            (1.35 if d == 1 else (2.01 if d == 2 else 0.85 * d)))
+
+    best = None
+    for _attempt in range(5):
+        best, cutpool = minimise_u0(orders, d, u_lo, u_hi, bisect=bisect,
+                                    verbose=verbose)
+        if best is not None:
+            break
+        u_hi *= 1.8
+        print(f"    infeasible at the upper bracket; retrying with "
+              f"u_hi = {u_hi:.4f}")
     if best is None:
-        print("LP infeasible at u_hi -- raise --u-hi")
+        print(f"LP infeasible even at u_hi = {u_hi:.4f} -- pass --u-hi "
+              f"explicitly, or the degree may be too high for the grid")
         return
     print("-" * 74)
+    if best.get("hit_lower_bracket"):
+        print("*** LP BREAKDOWN: the bisection reached its rigorous lower "
+              "bracket. The float64 LP and scan cannot decide feasibility "
+              "at this degree; discard this estimate. ***")
     print(f"[1] LP global structure  (grid relaxation -- ESTIMATE, not a bound)")
     print(f"    u0* = {best['u0']:.10f}   rho ~ {best['rho']:.10f}")
     print(f"    tangencies: {np.round(np.array(best['tangencies']), 6)}")
@@ -568,6 +643,14 @@ def run(d: int, s_sign: int, n_basis: int, bisect: int, dps: int,
         if v["verdict"] == "PASS":
             quote = float(v["rho"])
 
+    ref_rho = quote if quote is not None else best["rho"]
+    print("-" * 74)
+    print(f"asymptotic normalisation: rho*sqrt(2pi/d) = "
+          f"{ref_rho*math.sqrt(2*math.pi/d):.6f}   "
+          f"[CDG Thm 1.2 sublinear asymptote 1.000000; "
+          f"AJCHT Conj 3.2 target {math.sqrt(2/math.pi):.6f}]")
+    print(f"degree/d = {deg/d:.4f}   (CDG Thm 1.2 governs degree/d -> 0)")
+
     from .gaussian_mixture import published_upper
     pub = published_upper(d, s_sign)
     print("-" * 74)
@@ -601,6 +684,10 @@ def main():
     ap.add_argument("--bisect", type=int, default=42)
     ap.add_argument("--dps", type=int, default=60)
     ap.add_argument("--json", default=None)
+    ap.add_argument("--u-lo", type=float, default=None,
+                    help="lower bracket for u0 (default: best rigorous bound)")
+    ap.add_argument("--u-hi", type=float, default=None,
+                    help="upper bracket for u0 (default: 0.85*d for d > 2)")
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--polish", default=None,
                     help="comma-separated taus: skip the LP, collocate+verify "
@@ -624,7 +711,8 @@ def main():
             print(f"published {pub:.6f}   verified {r:.9f}")
             print(f"   {compare_published(r, pub)}")
         return
-    run(a.d, a.sign, a.n_basis, a.bisect, a.dps, a.json, not a.quiet)
+    run(a.d, a.sign, a.n_basis, a.bisect, a.dps, a.json, not a.quiet,
+        u_lo_cli=a.u_lo, u_hi_cli=a.u_hi)
 
 
 if __name__ == "__main__":
