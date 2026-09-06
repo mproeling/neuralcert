@@ -6,7 +6,7 @@ import csv
 
 import pytest
 
-from neuracert.data import DATASETS, dataset
+from neuralcert.data import DATASETS, dataset
 
 
 def test_maynard_sweep_datasets_are_available() -> None:
@@ -24,5 +24,5 @@ def test_maynard_sweep_datasets_are_available() -> None:
 
 def test_dataset_accepts_filename_and_rejects_unknown_names() -> None:
     assert dataset("maynard_R_sweep_eta.csv").name == "maynard_R_sweep_eta.csv"
-    with pytest.raises(KeyError, match="unknown NeuraCert dataset"):
+    with pytest.raises(KeyError, match="unknown NeuralCert dataset"):
         dataset("missing")

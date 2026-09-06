@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from neuracert.core.registry import Registry, problems
+from neuralcert.core.registry import Registry, problems
 
 
 def test_registry_registers_and_constructs_plugins() -> None:
@@ -17,7 +17,7 @@ def test_registry_registers_and_constructs_plugins() -> None:
 
 
 def test_maynard_problem_is_registered() -> None:
-    import neuracert.problems  # noqa: F401
+    import neuralcert.problems  # noqa: F401
 
     problem = problems.create("maynard", k=51, method="ratio")
     assert problem.name == "maynard"

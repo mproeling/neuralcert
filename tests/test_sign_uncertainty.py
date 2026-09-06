@@ -7,12 +7,12 @@ from pathlib import Path
 
 import numpy as np
 
-from neuracert.core.registry import problems
-from neuracert.problems.sign_uncertainty import Family, SignUncertaintyProblem
-from neuracert.problems.sign_uncertainty.certify import certify
-from neuracert.problems.sign_uncertainty.laguerre_basis import lag_coeffs_frac, orders_for
-from neuracert.problems.sign_uncertainty.laguerre import compare_published
-from neuracert.problems.sign_uncertainty.verifier import verify
+from neuralcert.core.registry import problems
+from neuralcert.problems.sign_uncertainty import Family, SignUncertaintyProblem
+from neuralcert.problems.sign_uncertainty.certify import certify
+from neuralcert.problems.sign_uncertainty.laguerre_basis import lag_coeffs_frac, orders_for
+from neuralcert.problems.sign_uncertainty.laguerre import compare_published
+from neuralcert.problems.sign_uncertainty.verifier import verify
 
 
 def test_gc_alias_and_problem_validation() -> None:
@@ -47,7 +47,7 @@ def test_exact_certifier_and_independent_verifier() -> None:
 
 
 def test_verifier_imports_only_standard_library() -> None:
-    path = (Path(__file__).parents[1] / "src" / "neuracert" / "problems" /
+    path = (Path(__file__).parents[1] / "src" / "neuralcert" / "problems" /
             "sign_uncertainty" / "verifier.py")
     tree = ast.parse(path.read_text(), filename=str(path))
     imports = []
@@ -60,7 +60,7 @@ def test_verifier_imports_only_standard_library() -> None:
 
 
 def test_certification_does_not_import_discovery_modules() -> None:
-    path = (Path(__file__).parents[1] / "src" / "neuracert" / "problems" /
+    path = (Path(__file__).parents[1] / "src" / "neuralcert" / "problems" /
             "sign_uncertainty" / "certify.py")
     tree = ast.parse(path.read_text(), filename=str(path))
     modules = [node.module or "" for node in ast.walk(tree)

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import torch
 
-from neuracert import Evaluation, FunctionalProblem, Grid, SamplingConfig, discover
-from neuracert.discovery import MLPConfig
+from neuralcert import Evaluation, FunctionalProblem, Grid, SamplingConfig, discover
+from neuralcert.discovery import MLPConfig
 
 
 class QuadraticProblem(FunctionalProblem):

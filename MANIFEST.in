@@ -2,5 +2,5 @@ include README.md
 recursive-include docs *.md
 recursive-include tests *.py
 recursive-include examples *.py
-recursive-include src/neuracert/data *.csv
+recursive-include src/neuralcert/data *.csv
 global-exclude __pycache__ *.py[cod]

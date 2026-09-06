@@ -45,11 +45,11 @@ def _method_was_explicit(argv: Sequence[str]) -> bool:
 
 def _print_overview() -> None:
     print(
-        "usage: neuracert discover [--method {poly,ratio}] [method options]\n\n"
+        "usage: neuralcert discover [--method {poly,ratio}] [method options]\n\n"
         "Discovery methods:\n"
         f"\n--method poly\n    {POLY_DESCRIPTION}\n"
         f"\n--method ratio\n    {RATIO_DESCRIPTION}\n\n"
-        "Use 'neuracert discover --method METHOD --help' for method-specific options."
+        "Use 'neuralcert discover --method METHOD --help' for method-specific options."
     )
 
 

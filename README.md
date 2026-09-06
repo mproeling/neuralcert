@@ -1,4 +1,4 @@
-# NeuraCert
+# NeuralCert
 
 Een uitbreidbaar Python-framework voor numerieke discovery, distillation,
 refinement en onafhankelijke verificatie van number-theoryproblemen.
@@ -13,7 +13,7 @@ Een gebruiker implementeert alleen sampling, een differentiable objective en
 goedkope validatie:
 
 ```python
-from neuracert import FunctionalProblem, Evaluation, Grid, discover
+from neuralcert import FunctionalProblem, Evaluation, Grid, discover
 
 class MyProblem(FunctionalProblem):
     name = "my-number-theory-problem"
@@ -33,11 +33,11 @@ result = discover(problem=MyProblem(), model="mlp", device="cuda")
 Voor een volledige workflow:
 
 ```python
-from neuracert import Pipeline
-from neuracert.discovery import NeuralDiscovery, LandscapeProbe
-from neuracert.distill import RationalClusterDistiller
-from neuracert.refine import GeneralizedEigenRefiner
-from neuracert.verify import ExactCertificateVerifier
+from neuralcert import Pipeline
+from neuralcert.discovery import NeuralDiscovery, LandscapeProbe
+from neuralcert.distill import RationalClusterDistiller
+from neuralcert.refine import GeneralizedEigenRefiner
+from neuralcert.verify import ExactCertificateVerifier
 
 pipeline = Pipeline(
     discovery=NeuralDiscovery(...),
@@ -69,23 +69,38 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
+### Migratie van `neuracert` naar `neuralcert`
+
+Versie 0.11.0 wijzigt zowel de distributienaam, Python-namespace als CLI. Na
+een upgrade verwijder je daarom eerst de oude installatie:
+
+```bash
+python -m pip uninstall neuracert
+python -m pip install .
+```
+
+Vervang vervolgens `import neuracert` door `import neuralcert` en commando's
+zoals `neuracert discover` door `neuralcert discover`. Er wordt bewust geen
+oude import- of CLI-alias geïnstalleerd, zodat nieuwe omgevingen nog maar één
+publieke naam bevatten.
+
 ## Commando's
 
 ```bash
-neuracert discover --help
-neuracert discover --method poly --help
-neuracert discover --method ratio --help
-neuracert discover-gated --help
-neuracert certify --help
-neuracert certify --method poly --help
-neuracert certify --method ratio --help
-neuracert certify-epsilon --help
-neuracert certify-flint --help
-neuracert certify-crt --help
-neuracert certify-crt-ball --help
-neuracert certify-crt-scaled --help
-neuracert verify --help
-neuracert verify-direct --help
+neuralcert discover --help
+neuralcert discover --method poly --help
+neuralcert discover --method ratio --help
+neuralcert discover-gated --help
+neuralcert certify --help
+neuralcert certify --method poly --help
+neuralcert certify --method ratio --help
+neuralcert certify-epsilon --help
+neuralcert certify-flint --help
+neuralcert certify-crt --help
+neuralcert certify-crt-ball --help
+neuralcert certify-crt-scaled --help
+neuralcert verify --help
+neuralcert verify-direct --help
 ```
 
 De gated discovery kan zoals het oorspronkelijke script via `torchrun` worden
@@ -95,7 +110,7 @@ Wanneer `--export PAD` is opgegeven, wordt het NPZ-bestand altijd geschreven.
 Een mislukte numerieke refinement gate geeft daarbij een duidelijke waarschuwing
 in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
 
-`neuracert discover` ondersteunt twee methodologische families:
+`neuralcert discover` ondersteunt twee methodologische families:
 
 `--method poly`
 : Polynomial channels: symmetric-polynomial trial functions optimised by Adam
@@ -110,13 +125,13 @@ in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
   it attains `log k - 0.334 + o(1)` asymptotically.
 
 ```bash
-neuracert discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
+neuralcert discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
 ```
 
 De ratio-discovery ondersteunt ook de vergrote simplex met `--epsilon`:
 
 ```bash
-neuracert discover --method ratio --k 201 --mu 1 --epsilon 0.01 \
+neuralcert discover --method ratio --k 201 --mu 1 --epsilon 0.01 \
   --export ratio-epsilon.npz
 ```
 
@@ -129,17 +144,17 @@ Dezelfde indeling geldt voor de hoofd-certificerings-CLI. De bestaande
 Karatsuba-code valt onder `poly`; de nieuwe Arb-certifier valt onder `ratio`:
 
 ```bash
-neuracert discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
-neuracert certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
+neuralcert discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
+neuralcert certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
 ```
 
 De ratio-certifier accepteert discovery-exports ook expliciet via `--npz`:
 
 ```bash
-neuracert certify --method ratio --npz k650000000_single.npz
+neuralcert certify --method ratio --npz k650000000_single.npz
 ```
 
-Bij `neuracert certify --npz bestand.npz` wordt de methode automatisch uit het
+Bij `neuralcert certify --npz bestand.npz` wordt de methode automatisch uit het
 NPZ-schema herkend. Exacte ratio-kanalen worden uit de gehashte `canonical`-
 tekst gereconstrueerd; binaire objectvelden in oudere exports worden niet
 geopend en nieuwe exports bevatten uitsluitend numerieke of Unicode-arrays.
@@ -159,18 +174,18 @@ zelfstandig subpackage. Hij importeert geen code uit discovery of certification
 en implementeert de benodigde rekenstappen opnieuw.
 
 ```bash
-neuracert verify poly-certificaat.json --method poly
-neuracert verify ratio-certificaat.json --method ratio
+neuralcert verify poly-certificaat.json --method poly
+neuralcert verify ratio-certificaat.json --method ratio
 ```
 
 Voor de niet-rigoureuze, directe Monte-Carlo-controle van de oorspronkelijke
 Maynard-functionalen is er een bewust apart commando:
 
 ```bash
-neuracert verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
+neuralcert verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
 ```
 
-`neuracert verify` controleert een bewijs; `neuracert verify-direct` is uitsluitend
+`neuralcert verify` controleert een bewijs; `neuralcert verify-direct` is uitsluitend
 een onafhankelijke diagnostische/falsificatietest en levert geen certificaat.
 
 ### Delsarte-codegrenzen
@@ -180,20 +195,20 @@ weerspiegelt dat dit probleem andere invoer en een andere certificeringsroute
 heeft dan Maynard:
 
 ```bash
-neuracert delsarte bound hamming --n 24 --distance 8 --q 2 \
+neuralcert delsarte bound hamming --n 24 --distance 8 --q 2 \
   --certificate delsarte.json
-neuracert delsarte verify delsarte.json
+neuralcert delsarte verify delsarte.json
 
-neuracert delsarte bound johnson --n 16 --distance 6 --weight 6 \
+neuralcert delsarte bound johnson --n 16 --distance 6 --weight 6 \
   --certificate constant-weight.json
 
-neuracert delsarte hierarchy 10 6 --r 3 \
+neuralcert delsarte hierarchy 10 6 --r 3 \
   --output hierarchy-r3-10-6.json
 ```
 
 De LP wordt numeriek opgelost, dyadisch afgerond en daarna exact gerepareerd.
 De JSON-uitvoer is zelfvoorzienend; de Delsarte-verifier importeert geen
-NeuraCert-code en gebruikt alleen de Python-standaardbibliotheek. Zie
+NeuralCert-code en gebruikt alleen de Python-standaardbibliotheek. Zie
 [docs/delsarte.md](docs/delsarte.md) voor de Python-API en de trust boundary.
 
 ### Cohn–Gonçalves tekenonzekerheid
@@ -202,9 +217,9 @@ De derde probleemplugin bevat Gaussian-mixture discovery, collocatie, een
 globale Laguerre-LP, een hybride A/B-diagnose en exacte Sturm-certificering:
 
 ```bash
-neuracert sign laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
-neuracert sign certify --json candidate.json --out certificate.json
-neuracert sign verify certificate.json
+neuralcert sign laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
+neuralcert sign certify --json candidate.json --out certificate.json
+neuralcert sign verify certificate.json
 ```
 
 Zie [docs/sign-uncertainty.md](docs/sign-uncertainty.md) voor alle discovery-
@@ -218,7 +233,7 @@ beschikbaar na installatie uit een wheel:
 
 ```python
 import csv
-from neuracert.data import dataset
+from neuralcert.data import dataset
 
 with dataset("maynard_geometric_eta_sweep").open(
     "r", encoding="utf-8", newline=""
@@ -233,7 +248,7 @@ geaccepteerd.
 ## Packagestructuur
 
 ```text
-neuracert/
+neuralcert/
 ├── core/                 # problem/grid/result/constraint/registry-contracten
 ├── exact/                # herbruikbare CRT-, basis- en schemes-infrastructuur
 ├── discovery/            # generieke modellen, trainer, optimizers en probes

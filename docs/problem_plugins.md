@@ -3,7 +3,7 @@
 De kleinste bruikbare problem spec implementeert drie methoden:
 
 ```python
-from neuracert import Evaluation, FunctionalProblem, Grid, SamplingConfig
+from neuralcert import Evaluation, FunctionalProblem, Grid, SamplingConfig
 
 class MyProblem(FunctionalProblem):
     name = "my-problem"
@@ -35,13 +35,13 @@ kennis vereisen:
 - `refine_eigen(...)`, `refine_convex(...)`, `refine_newton(...)`;
 - eigen onafhankelijke verifier-callables.
 
-Deze hooks zijn optioneel. NeuraCert doet geen generieke rationalisatie of
+Deze hooks zijn optioneel. NeuralCert doet geen generieke rationalisatie of
 exactheidsclaim wanneer het probleem daarvoor onvoldoende informatie geeft.
 
 ## Registratie
 
 ```python
-from neuracert.core.registry import problems
+from neuralcert.core.registry import problems
 
 problems.register("my-problem", MyProblem)
 problem = problems.create("my-problem", ...)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from neuracert.core.problem import FunctionalProblem, Problem
+from neuralcert.core.problem import FunctionalProblem, Problem
 
 from test_generic_discovery import QuadraticProblem
 

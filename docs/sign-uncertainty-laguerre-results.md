@@ -34,11 +34,11 @@ now in best_lower_bound, leave-one-out recipe when tangency count is off by
 one (spurious shallow minimum near the feasibility boundary).
 
 ## Next commands
-neuracert sign laguerre --d 1 --n-basis 24 --bisect 44 --dps 80 --json llp_d1_n24.json
-neuracert sign laguerre --d 2 --n-basis 16 --bisect 44 --dps 70 --json llp_d2_n16.json
-neuracert sign laguerre --d 2 --n-basis 20 --bisect 44 --dps 80 --json llp_d2_n20.json
+neuralcert sign laguerre --d 1 --n-basis 24 --bisect 44 --dps 80 --json llp_d1_n24.json
+neuralcert sign laguerre --d 2 --n-basis 16 --bisect 44 --dps 70 --json llp_d2_n16.json
+neuralcert sign laguerre --d 2 --n-basis 20 --bisect 44 --dps 80 --json llp_d2_n20.json
 # if tangency count != (n-2)/2: leave-one-out with
-neuracert sign laguerre --d 1 --polish t1,...,tk --dps 80   # rung 2k+2
+neuralcert sign laguerre --d 1 --polish t1,...,tk --dps 80   # rung 2k+2
 ## Then
 - certkit: Sturm/SOS over Q on the rationalised collocation -> theorem-grade.
 - Hybrid A/B: add Gaussian columns to this LP; any gain below the polynomial
@@ -101,10 +101,10 @@ cert_d1_n12/16/20.json, cert_d2_n12.json   the four certificates
 
 ## Reproducing each certified number from a single command
 
-  d=1, deg 22 -> 0.572989678   neuracert sign laguerre --d 1 --n-basis 12 --bisect 42 --dps 60
-  d=1, deg 30 -> 0.572706699   neuracert sign laguerre --d 1 --n-basis 16 --bisect 42 --dps 60
-  d=1, deg 38 -> 0.572588699   neuracert sign laguerre --d 1 --n-basis 20 --bisect 42 --dps 70
-  d=2, deg 22 -> 0.756206237   neuracert sign laguerre --d 2 --n-basis 12 --bisect 42 --dps 60
+  d=1, deg 22 -> 0.572989678   neuralcert sign laguerre --d 1 --n-basis 12 --bisect 42 --dps 60
+  d=1, deg 30 -> 0.572706699   neuralcert sign laguerre --d 1 --n-basis 16 --bisect 42 --dps 60
+  d=1, deg 38 -> 0.572588699   neuralcert sign laguerre --d 1 --n-basis 20 --bisect 42 --dps 70
+  d=2, deg 22 -> 0.756206237   neuralcert sign laguerre --d 2 --n-basis 12 --bisect 42 --dps 60
 
 n_basis is the knob: rho falls with degree.  n=12 reproduces CG's own
 configuration (5 contacts, degree 22) and only just dips below their value;
@@ -122,5 +122,5 @@ interchangeable -- itself the signature of the failure mode); the dropped one
 is tau = 27.733562.
 
 Certificates then follow from the printed taus:
-  neuracert sign certify --d 1 --tau-digits 7 --taus <the 9 taus> \
+  neuralcert sign certify --d 1 --tau-digits 7 --taus <the 9 taus> \
       --out cert_d1_n20.json

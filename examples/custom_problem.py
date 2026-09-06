@@ -1,10 +1,10 @@
-"""Minimal user-defined problem for the generic NeuraCert discovery API."""
+"""Minimal user-defined problem for the generic NeuralCert discovery API."""
 
 from __future__ import annotations
 
 import torch
 
-from neuracert import Evaluation, FunctionalProblem, Grid, SamplingConfig, discover
+from neuralcert import Evaluation, FunctionalProblem, Grid, SamplingConfig, discover
 
 
 class SineApproximationProblem(FunctionalProblem):

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from neuracert import Pipeline
+from neuralcert import Pipeline
 import pytest
-from neuracert.core.result import (
+from neuralcert.core.result import (
     Diagnostic,
     DiscoveryResult,
     DistillationResult,

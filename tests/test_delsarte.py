@@ -6,12 +6,12 @@ import ast
 import json
 from pathlib import Path
 
-from neuracert.core.registry import problems
-from neuracert.problems.delsarte import DelsarteCodeProblem, binary_code_bound
-from neuracert.problems.delsarte.cli import main as delsarte_main
-from neuracert.problems.delsarte.verifier import verify
-from neuracert.problems.delsarte.hierarchy import brute_check, gl_group
-from neuracert.problems.delsarte.hierarchy_cli import run_hierarchy
+from neuralcert.core.registry import problems
+from neuralcert.problems.delsarte import DelsarteCodeProblem, binary_code_bound
+from neuralcert.problems.delsarte.cli import main as delsarte_main
+from neuralcert.problems.delsarte.verifier import verify
+from neuralcert.problems.delsarte.hierarchy import brute_check, gl_group
+from neuralcert.problems.delsarte.hierarchy_cli import run_hierarchy
 
 
 def test_delsarte_is_registered() -> None:
@@ -34,8 +34,8 @@ def test_cli_writes_a_verifiable_certificate(tmp_path: Path) -> None:
     assert verify(json.loads(output.read_text()), lambda *_: None)
 
 
-def test_independent_verifier_has_no_neuracert_imports() -> None:
-    path = Path(__file__).parents[1] / "src" / "neuracert" / "problems" / "delsarte" / "verifier.py"
+def test_independent_verifier_has_no_neuralcert_imports() -> None:
+    path = Path(__file__).parents[1] / "src" / "neuralcert" / "problems" / "delsarte" / "verifier.py"
     tree = ast.parse(path.read_text(), filename=str(path))
     imports: list[str] = []
     for node in ast.walk(tree):
@@ -43,7 +43,7 @@ def test_independent_verifier_has_no_neuracert_imports() -> None:
             imports.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
             imports.append(node.module or "")
-    assert not [name for name in imports if name.startswith("neuracert")]
+    assert not [name for name in imports if name.startswith("neuralcert")]
 
 
 def test_hierarchy_uses_true_gl3_orbits_and_general_partial_transforms() -> None:
@@ -57,5 +57,5 @@ def test_hierarchy_pipeline_exports_exact_dataset(tmp_path: Path) -> None:
                                 output=output, verbose=False)
     document = json.loads(output.read_text())
     assert certificate.bound_on_A_lin() == 4
-    assert document["format"] == "neuracert-delsarte-hierarchy-4"
+    assert document["format"] == "neuralcert-delsarte-hierarchy-4"
     assert document["bound_on_A_lin"] == 4
