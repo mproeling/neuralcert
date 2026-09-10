@@ -125,8 +125,31 @@ in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
   it attains `log k - 0.334 + o(1)` asymptotically.
 
 ```bash
-neuralcert discover --method ratio --k 201 --mu 2,2,1 --export ratio-k201.npz
+neuralcert discover --method ratio --opt direct --k 201 --mu 2,2,1 \
+  --export ratio-k201.npz
 ```
+
+`--opt direct` is de standaard en behoudt de oorspronkelijke route: de
+rationele familie wordt rechtstreeks op het Rayleigh-quotiënt geoptimaliseerd,
+zonder neurale tussenstap.
+
+Een neurale `poly`-export kan eerst naar deze geclusterde rationale familie
+worden gedistilleerd met gewogen variable projection. Voor iedere vaste set
+poollocaties worden de lineaire coëfficiënten via least squares geëlimineerd;
+alleen de positieve, geordende polen worden niet-lineair geoptimaliseerd:
+
+```bash
+neuralcert discover --method ratio --opt neural --k 201 --mu 2,2,1 \
+  --distill-npz neural-k201.npz --export ratio-k201.npz
+```
+
+Bij meerdere neurale kanalen wordt standaard het kanaal met de grootste
+absolute Ritz-coëfficiënt gekozen. `--distill-channel INDEX` kiest expliciet
+een ander kanaal. `--distill-poles`, `--distill-maxiter` en
+`--distill-prune` regelen respectievelijk de startpolen, het buitenste
+optimalisatiebudget en de multipliciteitspruning. Bij `--opt neural` bepaalt
+de fit alleen de startstructuur; de gerapporteerde `R` wordt daarna opnieuw
+geoptimaliseerd in de deterministische ratio-evaluator.
 
 De ratio-discovery ondersteunt ook de vergrote simplex met `--epsilon`:
 

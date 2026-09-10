@@ -411,14 +411,26 @@ def _grad(x, mus, k, grid, h, eps=0.0):
 
 
 def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
-             h=2e-3, verbose=True, eps=0.0):
-    """Maximise R over the cluster base points.  Multiplicities are fixed."""
+             h=2e-3, verbose=True, eps=0.0, initial_cs=None):
+    """Maximise R over cluster locations, optionally seeded by distillation."""
     grid = grid or Grid()
     r = len(mus)
     c0 = 1.0 / (math.log(k - 1) - 0.13)
     best = None
+    starts = []
+    if initial_cs is not None:
+        distilled = np.asarray(initial_cs, dtype=float).reshape(-1)
+        if distilled.size != r or np.any(distilled <= 0.0) or not np.all(np.isfinite(distilled)):
+            raise ValueError("initial_cs must contain one finite positive pole per cluster")
+        if np.any(np.diff(distilled) <= 0.0):
+            raise ValueError("initial_cs must be strictly increasing")
+        starts.append(("distilled", distilled))
     for sp in (spreads if r > 1 else (1.0,)):
-        cs0 = c0 * np.geomspace(1.0 / sp, sp, r) if r > 1 else np.array([c0])
+        standard = (c0 * np.geomspace(1.0 / sp, sp, r)
+                    if r > 1 else np.array([c0]))
+        starts.append((sp, standard))
+
+    for start_label, cs0 in starts:
         x0 = c_to_x(cs0)
         stats = dict(nfail=0, calls=0, last_ok=None)
 
@@ -441,7 +453,7 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
 
         if r == 1:
             ub, _ = _scalar_min(lambda u: negf(np.array([u]))[0],
-                                math.log(c0), verbose=verbose)
+                                math.log(cs0[0]), verbose=verbose)
             xb, nit, msg = np.array([ub]), stats["calls"], "scan+brent"
         else:
             res = minimize(negf, x0, jac=True, method="L-BFGS-B",
@@ -456,7 +468,7 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
             continue
         moved = float(np.max(np.abs(np.log(cs / cs0))))
         rec = dict(R=R, cs=cs, v=v, dg=dg, nit=nit, msg=msg, moved=moved,
-                   spread=sp, nfail=stats["nfail"], calls=stats["calls"])
+                   spread=start_label, nfail=stats["nfail"], calls=stats["calls"])
         if best is None or R > best["R"]:
             best = rec
     if best is None:
@@ -633,14 +645,87 @@ def main():
                     help="write an exact .npz for the certifier")
     ap.add_argument("--export-prune", type=float, default=1e-12,
                     help="relative |v| threshold used only when exporting")
+    ap.add_argument("--opt", choices=("direct", "neural"), default="direct",
+                    help="direct: optimise the rational Rayleigh quotient directly "
+                         "(default); neural: distil a neural NPZ by variable projection "
+                         "and then run the same direct refinement")
+    ap.add_argument("--distill-npz", type=str, default=None,
+                    help="poly/neural discovery NPZ containing x_fine and g_fine; "
+                         "fit rational poles by weighted variable projection")
+    ap.add_argument("--distill-channel", type=int, default=None,
+                    help="zero-based g_fine channel to distill (default: dominant Ritz channel)")
+    ap.add_argument("--distill-poles", type=str, default=None,
+                    help="comma-separated initial pole locations for variable projection")
+    ap.add_argument("--distill-maxiter", type=int, default=300,
+                    help="outer pole-location iterations in variable projection")
+    ap.add_argument("--distill-prune", type=float, default=1e-12,
+                    help="relative weighted contribution threshold for inferred multiplicities")
     a = ap.parse_args()
     if not 0.0 <= a.epsilon < 1.0:
         ap.error("--epsilon must lie in [0, 1)")
+    if a.opt == "neural" and not a.distill_npz:
+        ap.error("--opt neural requires --distill-npz FILE")
+    if a.opt == "direct" and a.distill_npz:
+        ap.error("--distill-npz is only used with --opt neural")
     mus = [int(z) for z in a.mu.split(",") if z.strip()]
     grid = Grid(N=a.n_fft)
+    initial_cs = None
+    distillation = None
+    if a.opt == "neural":
+        from neuralcert.problems.maynard.distill import distill_neural_npz
+
+        supplied_poles = ([float(value) for value in a.distill_poles.split(",")]
+                          if a.distill_poles else None)
+        fit, fit_metadata = distill_neural_npz(
+            a.distill_npz,
+            mus,
+            channel=a.distill_channel,
+            initial_poles=supplied_poles,
+            maxiter=a.distill_maxiter,
+            prune_tolerance=a.distill_prune,
+        )
+        if fit_metadata["k"] != a.k:
+            raise ValueError(
+                f"distillation NPZ has k={fit_metadata['k']}, CLI requested k={a.k}"
+            )
+        if abs(fit_metadata["epsilon"] - a.epsilon) > 1e-15:
+            raise ValueError(
+                "distillation NPZ epsilon does not match the requested ratio problem"
+            )
+        active = np.asarray(fit.multiplicities) > 0
+        if not np.any(active):
+            raise FloatingPointError("variable projection pruned every rational cluster")
+        initial_cs = fit.poles[active]
+        mus = [int(value) for value in np.asarray(fit.multiplicities)[active]]
+        distillation = {
+            **fit_metadata,
+            "poles": list(map(float, fit.poles)),
+            "multiplicities": list(map(int, fit.multiplicities)),
+            "coefficients": list(map(float, fit.coefficients)),
+            "powers": list(map(int, fit.powers)),
+            "retained": list(map(bool, fit.retained)),
+            "relative_error": fit.relative_error,
+            "weighted_error": fit.weighted_error,
+            "rank": fit.rank,
+            "condition": fit.condition,
+            "iterations": fit.iterations,
+            "success": fit.success,
+            "message": fit.message,
+        }
+        print("variable projection distillation:")
+        print(f"  source channel = {fit_metadata['channel']}   samples = "
+              f"{fit_metadata['samples']}")
+        print(f"  poles          = {[float(f'{x:.8g}') for x in fit.poles]}")
+        print(f"  coefficients   = {[float(f'{x:.8g}') for x in fit.coefficients]}")
+        print(f"  inferred mu    = {list(fit.multiplicities)}")
+        print(f"  relative error = {fit.relative_error:.3e}   rank = {fit.rank}/"
+              f"{len(fit.coefficients)}   cond = {fit.condition:.3e}")
+        print("  retained poles seed the independent deterministic Rayleigh refinement")
+
     t0 = time.time()
     R, cs, v, dg, rec = optimise(
-        a.k, mus, grid=grid, maxiter=a.maxiter, verbose=False, eps=a.epsilon)
+        a.k, mus, grid=grid, maxiter=a.maxiter, verbose=False, eps=a.epsilon,
+        initial_cs=initial_cs)
     lk, cl = math.log(a.k), ceiling(a.k)
     print(f"k = {a.k}   mu = {mus}   epsilon = {a.epsilon:g}   "
           f"M = {dg['M']}   [{time.time()-t0:.1f}s]")
@@ -674,10 +759,13 @@ def main():
         export(a.export, a.k, mus, cs, v, R, grid, prune=a.export_prune,
                eps=a.epsilon)
     if a.out:
-        json.dump(dict(k=a.k, mu=mus, epsilon=a.epsilon, R=R,
-                       log_k=lk, ceiling=(cl if a.epsilon == 0.0 else None),
-                       c=list(map(float, cs)), weights=list(map(float, v)),
-                       rank=dg["rank"], M=dg["M"]), open(a.out, "w"), indent=2)
+        output = dict(k=a.k, mu=mus, epsilon=a.epsilon, R=R,
+                      log_k=lk, ceiling=(cl if a.epsilon == 0.0 else None),
+                      c=list(map(float, cs)), weights=list(map(float, v)),
+                      rank=dg["rank"], M=dg["M"])
+        if distillation is not None:
+            output["distillation"] = distillation
+        json.dump(output, open(a.out, "w"), indent=2)
         print(f"  written to {a.out}")
 
 
