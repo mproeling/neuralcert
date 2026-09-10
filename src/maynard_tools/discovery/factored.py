@@ -360,17 +360,15 @@ class SeparableMaynard:
         self.stability_rtol = 2.5e-1
         self.psd_tol = 1e-8
         self.R_tol = 1e-3
-        # Rigorous upper bound. The tight Polymath8b bound M_k <= k/(k-1) log k
-        # applies to the VANILLA problem (eps = 0) only. The epsilon-enlarged
-        # M_{k,eps,1/2} is genuinely larger — that is the whole point of the
-        # enlargement — so the tight bound would reject legitimate values
-        # (e.g. 4.005 at k=50, eps=1/25). For eps > 0 we fall back to the
-        # Cauchy-Schwarz bound R <= k, which holds unconditionally: each
-        # J_m <= I by C-S on the inner integral, so sum_m J_m <= k I.
-        if epsilon > 0.0:
-            self.R_bound = float(k)
+        # Use the same rigorous ceiling as the gated implementation: Cor. 6.4
+        # for the vanilla problem and the uniform Prop. 6.5 bound for an
+        # epsilon-enlarged simplex.
+        if k < 2:
+            self.R_bound = float("inf")
+        elif epsilon > 0.0:
+            self.R_bound = (k / (k - 1.0)) * math.log(2.0 * k - 1.0)
         else:
-            self.R_bound = (k / (k - 1.0)) * math.log(k) if k >= 2 else float("inf")
+            self.R_bound = (k / (k - 1.0)) * math.log(k)
         self.max_panels = 512
         self.device = resolve_device(device) if isinstance(device, str) else torch.device(device)
         self.dtype = dtype
@@ -1023,15 +1021,11 @@ class SeparableMaynard:
                 f"{self.stability_rtol:.0%}. The value leans on directions "
                 f"where A is below its own assembly accuracy — noise, not "
                 f"M_k. Raise --trunc-floor or --n-rep.")
-        # --- gate 2: M_k <= k for EVERY admissible F. By Cauchy-Schwarz on the
-        # inner integral, (int F dt_m)^2 <= (1-Sigma) int F^2 dt_m <= int F^2,
-        # so J^{(m)} <= I and sum_m J^{(m)} <= k I. R > k is therefore
-        # impossible and proves the pencil has stopped representing the
-        # variational problem.
+        # --- gate 2: enforce the problem's rigorous vanilla/epsilon ceiling.
         if not math.isfinite(float(R)) or float(R) > self.R_bound * (1.0 + self.R_tol):
             raise ValidationError(
                 f"R = {float(R):.6f} exceeds the rigorous upper bound "
-                f"M_k <= (k/(k-1)) log k = {self.R_bound:.6f} (Polymath8b; "
+                f"R_bound = {self.R_bound:.6f} (vanilla/epsilon bound; "
                 f"tol {self.R_tol:.0e}). Every admissible trial function "
                 f"satisfies R <= M_k, so the discretisation is being "
                 f"exploited, not the variational problem solved. Raise "
@@ -1148,11 +1142,10 @@ def train(problem: SeparableMaynard, g: nn.Module, iters: int, lr: float,
                 # max_violations never fired and stages ran their full budget
                 # inside an excursion. strikes is cleared only when a point is
                 # actually ACCEPTED (below).
-                # Excursion guard. For eps > 0 the only rigorous bound is
-                # R <= k, which at k = 250 is far too loose to catch a 5 -> 70
-                # discretisation excursion. This is an explicitly HEURISTIC
-                # relative guard: a genuine optimisation step does not
-                # multiply the validated best several-fold.
+                # Excursion guard. The relative part remains a heuristic
+                # complement to the rigorous vanilla/epsilon absolute bound:
+                # a genuine optimisation step should not multiply the
+                # validated best several-fold.
                 abs_cap = problem.R_bound * (1.0 + problem.R_tol)
                 over_abs = rep.R > abs_cap
                 # the relative multiple is only meaningful once the incumbent
@@ -1492,8 +1485,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--excursion-factor", type=float, default=3.0,
                    help="HEURISTIC guard: reject a validation point whose R "
                         "exceeds this multiple of the validated best. Not a "
-                        "theorem — for eps > 0 the only rigorous bound is "
-                        "R <= k, too loose to catch 5 -> 70. 0 disables.")
+                        "theorem; the rigorous absolute bound is checked "
+                        "separately. 0 disables.")
     p.add_argument("--dump-violation", type=str, default=None,
                    help="write the channel state to this path the first time "
                         "a bound violation fires, for offline dissection")
@@ -1913,7 +1906,8 @@ def main() -> None:
         # matter which branch above produced it.  These close two holes that
         # let inflated values pass at k=500 (vanilla eps=0):
         #   (1) CEILING: R must not exceed the rigorous upper bound
-        #       R_bound (= (k/(k-1)) log k for eps=0; = k for eps>0).  The
+        #       R_bound (= k/(k-1) log k for eps=0; = k/(k-1) log(2k-1)
+        #       for eps>0).  The
         #       in-branch ceiling test only ran inside the power-law-fit
         #       branch, so a value reaching the "converged"/non-contracting
         #       fallbacks bypassed it.  M_k CANNOT exceed R_bound; a value

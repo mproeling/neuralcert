@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import subprocess
 import sys
+import math
 
 from neuralcert.core.result import DiscoveryResult
 from neuralcert.distill import RationalClusterDistiller
@@ -16,6 +17,15 @@ from neuralcert.distill.rational import (
 )
 from neuralcert.problems.maynard import MaynardProblem
 from neuralcert.problems.maynard.distill import load_neural_channel, trapezoid_weights
+from maynard_tools.discovery.ratio import ceiling
+
+
+def test_ratio_ceiling_matches_vanilla_and_epsilon_bounds() -> None:
+    k = 50
+    assert ceiling(k, 0.0) == pytest.approx(k / (k - 1.0) * math.log(k))
+    assert ceiling(k, 0.01) == pytest.approx(
+        k / (k - 1.0) * math.log(2.0 * k - 1.0)
+    )
 
 
 def test_fixed_poles_project_linear_coefficients() -> None:

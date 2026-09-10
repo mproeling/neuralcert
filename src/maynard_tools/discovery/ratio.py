@@ -287,8 +287,12 @@ def gram(cs, mus, k, grid, eps=0.0):
     return lA, lB
 
 
-def ceiling(k):
-    return k / (k - 1.0) * math.log(k)
+def ceiling(k, eps=0.0):
+    """Rigorous vanilla or epsilon-enlarged upper bound used by all backends."""
+    if k < 2:
+        return float("inf")
+    logarithm = math.log(2.0 * k - 1.0) if eps > 0.0 else math.log(k)
+    return k / (k - 1.0) * logarithm
 
 
 def _precond(lA, lB):
@@ -308,10 +312,7 @@ def rayleigh(cs, mus, k, grid=None, rank_tol=1e-10, gate=True, eps=0.0):
     ev, vr = np.linalg.eigh(0.5 * (Br + Br.T))
     i = int(np.argmax(ev))
     R = k * float(ev[i])
-    # The tight ceiling M_k < k/(k-1) log k holds only at eps = 0; the
-    # enlarged problem legitimately exceeds it -- that is the point of the
-    # trick.  For eps > 0 fall back to the crude but valid R <= k.
-    lim = ceiling(k) if eps == 0.0 else float(k)
+    lim = ceiling(k, eps)
     if gate and R > lim * (1 + 1e-9):
         raise FloatingPointError(f"R={R:.6f} exceeds bound {lim:.6f}")
     v = W @ vr[:, i]
@@ -475,7 +476,7 @@ def optimise(k, mus, grid=None, spreads=(4.0, 2.0, 8.0), maxiter=400,
         raise FloatingPointError("every start was rejected by the gates")
     if verbose:
         dg = best["dg"]
-        limit = ceiling(k) if eps == 0.0 else float(k)
+        limit = ceiling(k, eps)
         print(f"  k={k:7d} mu={list(mus)} eps={eps:g}  M={dg['M']}  "
               f"R={best['R']:.6f}  bound {limit:.6f}  "
               f"log k - R = {math.log(k)-best['R']:+.5f}")
@@ -621,7 +622,7 @@ def export(path, k, mus, cs, v, R, grid, prune=1e-12, eps=0.0):
              power=[it[1] for it in items],
              w_num=exact_strings(it[2].numerator for it in items),
              w_den=exact_strings(it[2].denominator for it in items),
-             R_discovery=R, ceiling=ceiling(k), sha256=h, canonical=canon)
+             R_discovery=R, ceiling=ceiling(k, eps), sha256=h, canonical=canon)
     kept_idx = list(map(int, np.flatnonzero(keep)))
     print(f"  export keep indices (by |v|): {kept_idx}")
     print(f"  exported {len(items)} channels (pruned {len(ch)-len(items)} on |v|) "
@@ -726,15 +727,12 @@ def main():
     R, cs, v, dg, rec = optimise(
         a.k, mus, grid=grid, maxiter=a.maxiter, verbose=False, eps=a.epsilon,
         initial_cs=initial_cs)
-    lk, cl = math.log(a.k), ceiling(a.k)
+    lk, cl = math.log(a.k), ceiling(a.k, a.epsilon)
     print(f"k = {a.k}   mu = {mus}   epsilon = {a.epsilon:g}   "
           f"M = {dg['M']}   [{time.time()-t0:.1f}s]")
     print(f"  R          = {R:.8f}")
     print(f"  log k      = {lk:.8f}")
-    if a.epsilon == 0.0:
-        print(f"  ceiling    = {cl:.8f}   (headroom {cl - R:+.6f})")
-    else:
-        print(f"  bound      = {float(a.k):.8f}   (epsilon problem; M_k ceiling not used)")
+    print(f"  ceiling    = {cl:.8f}   (headroom {cl - R:+.6f})")
     print(f"  log k - R  = {lk - R:+.6f}")
     print(f"  c          = {[float(f'{x:.8g}') for x in cs]}")
     print(f"  weights    = {[float(f'{x:.6g}') for x in v]}")
@@ -744,7 +742,7 @@ def main():
     if rec["moved"] < 1e-3:
         print("  *** WARNING: optimiser did not move -- starting grid, not an "
               "optimum ***")
-    if a.epsilon == 0.0 and R > cl:
+    if R > cl:
         print("  *** ABOVE THE CEILING -- evaluator defect, not a discovery ***")
     if a.verify:
         print("  grid refinement at fixed c and v:")
