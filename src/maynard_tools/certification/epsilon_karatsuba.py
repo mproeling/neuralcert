@@ -56,6 +56,8 @@ from fractions import Fraction
 
 import numpy as np
 
+from maynard_tools.certification.frames import load_discovery_frame
+
 from .karatsuba import (
     RAT,
     ExactSeparable,
@@ -250,14 +252,9 @@ def certify_epsilon(npz_path: str, degrees: list[int], bits: int,
                     emit_certificate: str | None = None,
                     jobs: int = 1):
     data = np.load(npz_path)
-    k = int(data["k"])
-    R_nn = float(data["R"])
-    c_nn = np.asarray(data["c"], dtype=np.float64)
-    x_fine = np.asarray(data["x_fine"], dtype=np.float64)
-    g_fine = np.asarray(data["g_fine"], dtype=np.float64)
-    if "channel_norms" in data:
-        g_fine = g_fine / np.asarray(data["channel_norms"],
-                                     dtype=np.float64)[None, :]
+    frame = load_discovery_frame(data)
+    k, R_nn = frame.k, frame.rayleigh
+    c_nn, x_fine, g_fine = frame.coefficients, frame.points, frame.channels
     eps_npz = float(data["epsilon"]) if "epsilon" in data else 0.0
 
     if epsilon is None:

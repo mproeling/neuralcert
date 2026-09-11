@@ -108,6 +108,8 @@ from fractions import Fraction
 
 import numpy as np
 
+from maynard_tools.certification.frames import load_discovery_frame
+
 try:
     from flint import nmod_poly
 except ImportError as exc:  # pragma: no cover
@@ -1002,30 +1004,13 @@ def certify_epsilon_crt(npz_path: str, degrees: list[int], bits: int,
                         ball_target_rel: float = 1e-12,
                         ball_max_prec: int = 4096):
     data = np.load(npz_path, mmap_mode="r")
-    k = int(data["k"])
-    R_nn = float(data["R"])
+    frame = load_discovery_frame(data)
+    k = frame.k
+    R_nn = frame.rayleigh
     R_nn_ref = R_nn
-    c_nn = np.asarray(data["c"], dtype=np.float64)
-    x_fine = np.asarray(data["x_fine"], dtype=np.float64)
-    g_fine = np.asarray(data["g_fine"], dtype=np.float64)
-    # The discovery solver evaluates every one-dimensional channel in the
-    # L2-normalised frame g_j / ||g_j||_2 before constructing its pair Gram
-    # matrices.  The exported g_fine is the RAW network output, while the
-    # exported c and logA_diag belong to that NORMALISED channel frame.
-    # Therefore the certifier must rebuild exactly the same channel shapes by
-    # dividing g_fine by channel_norms.  No power of channel_norms belongs in
-    # c afterwards: the k-th tensor-product scaling was already removed before
-    # the discovery Gram was assembled.
-    cnorms = None
-    if "channel_norms" in data:
-        cnorms = np.asarray(data["channel_norms"], dtype=np.float64)
-        if cnorms.ndim != 1 or cnorms.shape[0] != g_fine.shape[1]:
-            raise SystemExit("invalid channel_norms shape in npz")
-        bad_norm = (~np.isfinite(cnorms)) | (cnorms <= 0.0)
-        if np.any(bad_norm):
-            bad = np.where(bad_norm)[0].tolist()
-            raise SystemExit(f"non-positive/non-finite channel_norms for channels {bad}")
-        g_fine = g_fine / cnorms[None, :]
+    c_nn, x_fine, g_fine = frame.coefficients, frame.points, frame.channels
+    if frame.channel_norms is not None:
+        cnorms = frame.channel_norms
         rms_after = np.sqrt(np.mean(g_fine * g_fine, axis=0))
         peak_after = np.max(np.abs(g_fine), axis=0)
         print(f" channel shape normalisation: raw norm range "
@@ -1041,21 +1026,7 @@ def certify_epsilon_crt(npz_path: str, degrees: list[int], bits: int,
         print(" WARNING: npz has no channel_norms; assuming g_fine is already "
               "in the discovery channel frame")
 
-    # FRAME CONVERSION for discovery's exported c.  The stored matrices are
-    # diagonally preconditioned:
-    #     A_stored = D^{-1/2} A_norm D^{-1/2},
-    # so c_hat = D^{1/2} c_norm and the coefficient on the normalised channel
-    # basis is c_norm = exp(-logA_diag/2) c_hat.
-    #
-    # IMPORTANT: do NOT multiply by channel_norms here.  That would mix the
-    # raw-network frame back into coefficients while the projected channels
-    # remain g_fine/channel_norms.  For a separable k-fold channel such a raw
-    # rescaling would in any case enter as channel_norms**k, not linearly.
-    if "logA_diag" in data:
-        logA_diag = np.asarray(data["logA_diag"], dtype=np.float64)
-        c_nn = _scale_vector_by_logdiag_safe(
-            c_nn, logA_diag, exponent=-0.5,
-            label="discovery c: preconditioned -> true frame")
+    if frame.logA_diag is not None:
         print(" discovery c frame conversion: scale-safe log-space mapping "
               "(max |c| normalised to 1)")
     eps_npz = float(data["epsilon"]) if "epsilon" in data else 0.0

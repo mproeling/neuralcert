@@ -108,6 +108,8 @@ from fractions import Fraction
 
 import numpy as np
 
+from maynard_tools.certification.frames import load_discovery_frame
+
 try:
     from flint import nmod_poly
 except ImportError as exc:  # pragma: no cover
@@ -885,33 +887,11 @@ def certify_epsilon_crt(npz_path: str, degrees: list[int], bits: int,
                         verify_primes: int = 2,
                         resume: str | None = None):
     data = np.load(npz_path, mmap_mode="r")
-    k = int(data["k"])
-    R_nn = float(data["R"])
+    frame = load_discovery_frame(data)
+    k = frame.k
+    R_nn = frame.rayleigh
     R_nn_ref = R_nn
-    c_nn = np.asarray(data["c"], dtype=np.float64)
-    x_fine = np.asarray(data["x_fine"], dtype=np.float64)
-    g_fine = np.asarray(data["g_fine"], dtype=np.float64)
-    cnorms = None
-    if "channel_norms" in data:
-        cnorms = np.asarray(data["channel_norms"], dtype=np.float64)
-        g_fine = g_fine / cnorms[None, :]
-    # FRAME CONVERSION for discovery's exported c.  The discovery solver
-    # exports c in the frame of its DIAGONALLY PRECONDITIONED Gram
-    # (A_stored = D^{-1/2} A_true D^{-1/2}, D = diag(exp(logA_diag))), i.e.
-    # the stored c is c_hat = D^{1/2} c_true.  The certifier evaluates c on
-    # the TRUE channels (rebuilt from g_fine), so it needs c_true =
-    # exp(-logA_diag/2) * c_hat; and because the certifier further divides
-    # the channels by channel_norms, the weight on those normalised channels
-    # is c_true * channel_norms.  Skipping this conversion applies a
-    # preconditioned-frame c to true-frame channels and silently certifies a
-    # value far below discovery (k=53: 3.59 vs the true 3.99).  logA_diag is
-    # the k-th-power diagonal scale and is INDEPENDENT of channel_norms (the
-    # L2 scale), so both factors are needed.
-    if "logA_diag" in data:
-        logA_diag = np.asarray(data["logA_diag"], dtype=np.float64)
-        c_nn = c_nn * np.exp(-0.5 * logA_diag)
-        if cnorms is not None:
-            c_nn = c_nn * cnorms
+    c_nn, x_fine, g_fine = frame.coefficients, frame.points, frame.channels
     eps_npz = float(data["epsilon"]) if "epsilon" in data else 0.0
     if epsilon is None:
         if eps_npz == 0.0:

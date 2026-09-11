@@ -190,6 +190,12 @@ kanaal en macht 1. Gebruik daarom `--mu 1` bij discovery. Exports met meerdere
 kanalen of hogere machten worden bewust geweigerd en niet stilzwijgend
 vereenvoudigd.
 
+Voor polynomial-discovery-exports reconstrueren alle certifierbackends via
+één gedeelde loader hetzelfde kanaalframe. `channel_norms` normaliseert
+uitsluitend `g_fine`; een geëxporteerde Ritz-vector wordt met
+`exp(-logA_diag/2)` naar dat genormaliseerde frame teruggebracht. Dit geldt ook
+voor `--use-nn-c`; de standaard re-Ritz-route blijft beschikbaar.
+
 ## Onafhankelijke verifier
 
 De verifier zit voor installatiegemak in dezelfde distributie, maar is een
