@@ -5,10 +5,21 @@ Three programs, covering the three regimes where k values fall into.
 ```
 g++ -O3 -march=native -fopenmp -std=c++17 admissible_hybrid.cpp -o admissible_hybrid
 g++ -O3 -march=native -fopenmp -std=c++17 verify_tuple.cpp     -o verify_tuple
-g++ -O3 -march=native            -std=c++17 zhang_bound.cpp    -o zhang_bound
+g++ -O3 -march=native -std=c++17 zhang_bound.cpp \
+    -lmpfr -lgmp -o zhang_bound
 ```
 
 `-fopenmp` is optional; without it everything still runs correctly, single-threaded.
+`zhang_bound` requires MPFR and GMP so analytic upper bounds can be rounded
+outwards. On macOS:
+
+```bash
+brew install mpfr gmp
+clang++ -O3 -std=c++17 zhang_bound.cpp \
+  -I/opt/homebrew/opt/mpfr/include -I/opt/homebrew/opt/gmp/include \
+  -L/opt/homebrew/opt/mpfr/lib -L/opt/homebrew/opt/gmp/lib \
+  -lmpfr -lgmp -o zhang_bound
+```
 
 ```
 In Mac use homebrew: brew install llvm libomp 
@@ -30,7 +41,7 @@ will be several times faster.
 |---|---|---|
 | `zhang_bound --k 3500000` vs Polymath8 "first k primes past k" row | 59,874,594 | **59,874,594** exact match |
 | `zhang_bound --k 35265` vs independent Python sieve | 432,230 | **432,230** exact match |
-| Dusart closed form vs exact enumeration at k=12.5M | — | agree to **0.016 %** |
+| exact `pi(k)` + Dusart `p_n` vs exact enumeration at k=12.5M | rigorous upper bound | agree to **0.019 %** |
 | `admissible_hybrid --k 632` vs published greedy–Schinzel row (4,710) | ≤4,710 | **4,700** (record is 4,680) |
 | `admissible_hybrid --k 5000` vs published greedy–Schinzel row (46,968) | ≈46,968 | 47,070 (0.22 % behind; coarse sweep) |
 | `verify_tuple` on a gap permutation that preserves the diameter | reject | rejected, 8 witness failures |
@@ -62,13 +73,16 @@ Reproduce, or push further:
 
 ## k = 12,500,000 — either tool
 
-`zhang_bound` provides a rigorous number in under a second:
+`zhang_bound` provides a rigorous number in under a second. Because this `k`
+is outside the analytic `pi(k)` formula's domain, it first computes `pi(k)`
+exactly and only then applies the valid Dusart `p_n` bound:
 
 ```bash
 ./zhang_bound --k 12500000 --mode both
 ```
 ```
-dusart : H(12500000) <= 230,572,609     (closed form, no enumeration)
+dusart : pi(k) <= 818703 (exact pi(k) + Dusart p_n)
+         H(12500000) <= 230,577,846     (rigorous, MPFR outward rounding)
 exact  : H(12500000) <= 230,535,386     p in [12500003, 243035389]
          ratio to k log k + k : 1.0635
 ```
@@ -98,7 +112,8 @@ The Zhang construction is not:
 ./zhang_bound --k 1200000000 --mode both       # 59 s on one core
 ```
 ```
-dusart : H(1200000000) <= 27,849,469,966
+dusart : pi(k) <= 60454705 (exact pi(k) + Dusart p_n)
+         H(1200000000) <= 27,849,506,481 (rigorous, MPFR outward rounding)
 exact  : H(1200000000) <= 27,846,420,672      p in [1200000041, 29046420713]
          ratio to k log k + k : 1.0593
 ```
@@ -106,6 +121,14 @@ exact  : H(1200000000) <= 27,846,420,672      p in [1200000041, 29046420713]
 The certificate here is structural rather than enumerated:
 every element is a prime exceeding k, so residue class 0 mod p is
 empty for every p ≤ k, and for p > k a k-element set cannot meet all p classes.
+
+The analytic Dusart `pi(k)` expression with coefficient `2.334` is used only
+for `k >= 2,953,652,287`; below that threshold `pi(k)` is counted exactly.
+The subsequent Dusart `p_n` expression is accepted only when its integer index
+is at least `688,383`. Run `./zhang_bound --self-test` to check both domain
+boundaries, small exact prime counts, and the `p_n` threshold.
+These domains and formulas are from P. Dusart, *Estimates of Some Functions
+Over Primes without R.H.* (2010), <https://arxiv.org/abs/1002.0442>.
 
 ---
 
