@@ -131,6 +131,15 @@ pipeline; this remains the discovery model):
     --n-rep-check         representation-grid refinement on trained channels
     --outer-check         outer-window refinement (drop and node count)
 
+RATE-PARAMETERISATION NOTE
+==========================
+This script intentionally omits hard rate clipping because it produced
+boundary artifacts during optimization (as stated in Supplementary Material).
+This is not treated as a defect. The implementation nevertheless differs from
+gated.py in its saturated-regime parameterization and scalar-channel
+diagnostics, so the two discovery routes should not be described as
+numerically identical.
+
 Usage:
     python v9.py --k 100  --m-schedule 16,32 --iters 3000
     python v9.py --k 1000 --m-schedule 16,32 --iters 3000 --export k1000.npz
@@ -141,6 +150,7 @@ from __future__ import annotations
 import argparse
 import math
 import time
+import warnings
 from copy import deepcopy
 from dataclasses import dataclass
 
@@ -151,6 +161,19 @@ import torch
 import torch.nn as nn
 
 torch.set_default_dtype(torch.float64)
+
+
+def warn_large_k(k: int) -> None:
+    """Recommend the k-independent rational route for large factored runs."""
+    if k > 500:
+        warnings.warn(
+            f"factored polynomial discovery was requested with k={k} (>500). "
+            "Its cost and numerical sensitivity grow with k; consider "
+            "`neuralcert discover --method ratio --k ...` for the "
+            "k-independent rational discovery route.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 # Shared discovery building blocks.  Keeping these imports inside the discovery
 # namespace enforces the architectural boundary with exact certification.
@@ -1543,6 +1566,7 @@ def main() -> None:
     np.random.seed(args.seed)
 
     k, eps = args.k, args.epsilon
+    warn_large_k(k)
     rate_cap = args.rate_cap if args.rate_cap is not None else max(2.0 * k, 4.0)
     # The spectral default max(64, 8 sqrt k) is calibrated for spectral
     # accuracy. The positive (Gram-preserving) stencil is O(h^2), so it needs
