@@ -1,0 +1,32 @@
+% Dependency-free compact alternative to neuralcert-package-architecture.tex.
+% This version needs only standard LaTeX and is suitable for narrow appendices.
+
+\begin{figure}[tbp]
+  \centering
+  \begin{minipage}{0.96\linewidth}
+  \small
+  \begin{verbatim}
+NeuralCert repository
+|-- neuralcert/                  reusable framework
+|   |-- core/                   problem and result contracts
+|   |-- discovery/              neural models and optimization
+|   |-- distill/                structural compression
+|   |-- refine/                 deterministic local refinement
+|   |-- exact/                  reusable exact arithmetic
+|   |-- verify/                 independent verification primitives
+|   |-- data/                   reproducible datasets
+|   |-- pipeline.py             typed stage orchestration
+|   `-- problems/
+|       |-- maynard/            Maynard plugin and adapters
+|       |-- delsarte/           coding-theory LP plugin
+|       `-- sign_uncertainty/   Gaussian/Laguerre/Sturm plugin
+`-- maynard_tools/              specialized compatibility layer
+    |-- discovery/              factored, gated, ratio
+    |-- certification/          Karatsuba, CRT, FLINT, Arb
+    `-- verifier/               independent Maynard checks
+  \end{verbatim}
+  \end{minipage}
+  \caption{Compact directory view of the NeuralCert package architecture.}
+  \label{fig:neuralcert-package-tree}
+\end{figure}
+

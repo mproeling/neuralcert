@@ -1,0 +1,66 @@
+% NeuralCert package architecture -- paper-ready LaTeX fragment.
+%
+% Add this to the document preamble:
+%   \usepackage[edges]{forest}
+%
+% Then include this file where the figure should appear:
+%   \input{paper/neuralcert-package-architecture}
+
+\begin{figure}[tbp]
+  \centering
+  \begin{forest}
+    for tree={
+      font=\small\ttfamily,
+      grow'=0,
+      parent anchor=east,
+      child anchor=west,
+      anchor=west,
+      align=left,
+      edge={gray!65, semithick},
+      rounded corners,
+      inner xsep=3pt,
+      inner ysep=1.5pt,
+      l sep=9mm,
+      s sep=0.8mm,
+      tier/.option=level,
+    },
+    where level=0{
+      draw=black!70,
+      fill=black!7,
+      font=\small\bfseries\ttfamily,
+    }{},
+    where level=1{
+      draw=blue!55!black,
+      fill=blue!7,
+      font=\small\bfseries\ttfamily,
+    }{},
+    [NeuralCert repository
+      [neuralcert/\\{\scriptsize generic framework}
+        [core/\\{\scriptsize problem, grid, result, constraints, registry}]
+        [discovery/\\{\scriptsize models, trainer, optimizers, restarts, landscape}]
+        [distill/\\{\scriptsize rational, spectral, sparse-basis policies}]
+        [refine/\\{\scriptsize eigensolve, convex, Newton, local refinement}]
+        [exact/\\{\scriptsize bases, projection, CRT, Rayleigh, schemes}]
+        [verify/\\{\scriptsize independent interfaces and primitives}]
+        [data/\\{\scriptsize reproducible bundled datasets}]
+        [pipeline.py\\{\scriptsize typed discovery-to-verification pipeline}]
+        [problems/\\{\scriptsize problem-specific plugins}
+          [maynard/\\{\scriptsize problem, evaluator, distill, certify adapters}]
+          [delsarte/\\{\scriptsize LP bounds, hierarchy, certificate verifier}]
+          [sign\_uncertainty/\\{\scriptsize Gaussian/Laguerre search and Sturm verification}]
+        ]
+      ]
+      [maynard\_tools/\\{\scriptsize specialised compatibility backends}
+        [discovery/\\{\scriptsize factored, gated, and rational routes}]
+        [certification/\\{\scriptsize Karatsuba, CRT, FLINT, and Arb routes}]
+        [verifier/\\{\scriptsize independent certificate and direct-$I/J$ checks}]
+      ]
+    ]
+  \end{forest}
+  \caption{Package architecture of NeuralCert. The \texttt{neuralcert}
+  namespace contains reusable pipeline components and problem plugins.
+  Numerically specialised Maynard implementations remain isolated in
+  \texttt{maynard\_tools} and are reached through adapters, preserving the
+  boundary between numerical discovery and independent certification.}
+  \label{fig:neuralcert-package-architecture}
+\end{figure}
