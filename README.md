@@ -1,16 +1,16 @@
 # NeuralCert
 
-Een uitbreidbaar Python-framework voor numerieke discovery, distillation,
-refinement en onafhankelijke verificatie van number-theoryproblemen.
+An extensible Python framework for numerical discovery, distillation,
+refinement, and independent verification of number-theory problems.
 
-Maynard is de eerste ingebouwde probleemplugin, niet langer de architectuur van
-het hele package. De bestaande `maynard-*`-commando's blijven beschikbaar als
-compatibiliteitslaag.
+Maynard is the first bundled problem plugin rather than the architecture of the
+entire package. The existing `maynard-*` commands remain available as a
+compatibility layer.
 
-## Generieke discovery
+## Generic discovery
 
-Een gebruiker implementeert alleen sampling, een differentiable objective en
-goedkope validatie:
+Users need only implement sampling, a differentiable objective, and inexpensive
+validation:
 
 ```python
 from neuralcert import FunctionalProblem, Evaluation, Grid, discover
@@ -30,7 +30,7 @@ class MyProblem(FunctionalProblem):
 result = discover(problem=MyProblem(), model="mlp", device="cuda")
 ```
 
-Voor een volledige workflow:
+For a complete workflow:
 
 ```python
 from neuralcert import Pipeline
@@ -49,42 +49,41 @@ pipeline = Pipeline(
 result = pipeline.run(MyProblem())
 ```
 
-Zie [de pluginhandleiding](docs/problem_plugins.md) en
-[het uitvoerbare voorbeeld](examples/custom_problem.py).
+See the [problem-plugin guide](docs/problem_plugins.md) and the
+[executable example](examples/custom_problem.py).
 
-## Installatie
+## Installation
 
 ```bash
 python -m pip install .
 ```
 
-`python-flint` wordt standaard meegeïnstalleerd, omdat exacte certificering
-`from flint import ...` gebruikt. De distributienaam voor `pip` is dus
-`python-flint`, terwijl de Python-importnaam `flint` is.
+`python-flint` is installed by default because exact certification uses
+`from flint import ...`. Its distribution name on `pip` is therefore
+`python-flint`, while its Python import name is `flint`.
 
-Voor ontwikkeling en tests:
+For development and testing:
 
 ```bash
 python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
-### Migratie van `neuracert` naar `neuralcert`
+### Migrating from `neuracert` to `neuralcert`
 
-Versie 0.11.0 wijzigt zowel de distributienaam, Python-namespace als CLI. Na
-een upgrade verwijder je daarom eerst de oude installatie:
+Version 0.11.0 changed the distribution name, Python namespace, and CLI. Remove
+the old installation before upgrading:
 
 ```bash
 python -m pip uninstall neuracert
 python -m pip install .
 ```
 
-Vervang vervolgens `import neuracert` door `import neuralcert` en commando's
-zoals `neuracert discover` door `neuralcert discover`. Er wordt bewust geen
-oude import- of CLI-alias geïnstalleerd, zodat nieuwe omgevingen nog maar één
-publieke naam bevatten.
+Then replace `import neuracert` with `import neuralcert`, and commands such as
+`neuracert discover` with `neuralcert discover`. No legacy import or CLI alias
+is installed, so new environments expose only one public name.
 
-## Commando's
+## Commands
 
 ```bash
 neuralcert discover --help
@@ -103,14 +102,14 @@ neuralcert verify --help
 neuralcert verify-direct --help
 ```
 
-De gated discovery kan zoals het oorspronkelijke script via `torchrun` worden
-gestart. Het verouderde `--force-export`-argument is verwijderd.
+As in the original script, gated discovery can be launched through `torchrun`.
+The obsolete `--force-export` argument has been removed.
 
-Wanneer `--export PAD` is opgegeven, wordt het NPZ-bestand altijd geschreven.
-Een mislukte numerieke refinement gate geeft daarbij een duidelijke waarschuwing
-in de uitvoer, maar blokkeert de expliciet gevraagde export niet.
+Whenever `--export PATH` is supplied, the NPZ file is written. A failed
+numerical refinement gate produces a clear warning but does not block an
+explicitly requested export.
 
-`neuralcert discover` ondersteunt twee methodologische families:
+`neuralcert discover` supports two methodological families:
 
 `--method poly`
 : Polynomial channels: symmetric-polynomial trial functions optimised by Adam
@@ -129,99 +128,100 @@ neuralcert discover --method ratio --opt direct --k 201 --mu 2,2,1 \
   --export ratio-k201.npz
 ```
 
-`--opt direct` is de standaard en behoudt de oorspronkelijke route: de
-rationele familie wordt rechtstreeks op het Rayleigh-quotiënt geoptimaliseerd,
-zonder neurale tussenstap.
+`--opt direct` is the default and preserves the original route: the rational
+family is optimized directly against the Rayleigh quotient, with no neural
+intermediate step.
 
-Een neurale `poly`-export kan eerst naar deze geclusterde rationale familie
-worden gedistilleerd met gewogen variable projection. Voor iedere vaste set
-poollocaties worden de lineaire coëfficiënten via least squares geëlimineerd;
-alleen de positieve, geordende polen worden niet-lineair geoptimaliseerd:
+A neural `poly` export can first be distilled into this clustered rational
+family by weighted variable projection. For each fixed set of pole locations,
+the linear coefficients are eliminated by least squares; only the positive,
+ordered poles are optimized nonlinearly:
 
 ```bash
 neuralcert discover --method ratio --opt neural --k 201 --mu 2,2,1 \
   --distill-npz neural-k201.npz --export ratio-k201.npz
 ```
 
-Bij meerdere neurale kanalen wordt standaard het kanaal met de grootste
-absolute Ritz-coëfficiënt gekozen. `--distill-channel INDEX` kiest expliciet
-een ander kanaal. `--distill-poles`, `--distill-maxiter` en
-`--distill-prune` regelen respectievelijk de startpolen, het buitenste
-optimalisatiebudget en de multipliciteitspruning. Bij `--opt neural` bepaalt
-de fit alleen de startstructuur; de gerapporteerde `R` wordt daarna opnieuw
-geoptimaliseerd in de deterministische ratio-evaluator.
+For multiple neural channels, the channel with the largest absolute Ritz
+coefficient is selected by default. `--distill-channel INDEX` explicitly
+selects another channel. `--distill-poles`, `--distill-maxiter`, and
+`--distill-prune` control the initial poles, outer optimization budget, and
+multiplicity pruning, respectively. With `--opt neural`, the fit determines
+only the initial structure; the reported `R` is subsequently reoptimized in
+the deterministic ratio evaluator.
 
-De ratio-discovery ondersteunt ook de vergrote simplex met `--epsilon`:
+Ratio discovery also supports the enlarged simplex through `--epsilon`:
 
 ```bash
 neuralcert discover --method ratio --k 201 --mu 1 --epsilon 0.01 \
   --export ratio-epsilon.npz
 ```
 
-Een epsilon-export legt epsilon expliciet in het NPZ-bestand en de hash vast.
-De huidige v6 Arb-certifier ondersteunt alleen `epsilon=0` en weigert een
-epsilon-export daarom expliciet; hij zal die nooit stilzwijgend als het gewone
-Maynard-probleem certificeren.
+An epsilon export records epsilon explicitly in both the NPZ file and its hash.
+The current v6 Arb certifier supports only `epsilon=0` and therefore rejects an
+epsilon export explicitly; it will never silently certify it as the ordinary
+Maynard problem.
 
-Dezelfde indeling geldt voor de hoofd-certificerings-CLI. De bestaande
-Karatsuba-code valt onder `poly`; de nieuwe Arb-certifier valt onder `ratio`:
+The same division applies to the main certification CLI. The existing
+Karatsuba implementation belongs to `poly`; the Arb certifier belongs to
+`ratio`:
 
 ```bash
 neuralcert discover --method ratio --k 201 --mu 1 --export ratio-k201.npz
 neuralcert certify --method ratio ratio-k201.npz --cert-json ratio-k201.json
 ```
 
-De ratio-certifier accepteert discovery-exports ook expliciet via `--npz`:
+The ratio certifier also accepts discovery exports explicitly through `--npz`:
 
 ```bash
 neuralcert certify --method ratio --npz k650000000_single.npz
 ```
 
-Bij `neuralcert certify --npz bestand.npz` wordt de methode automatisch uit het
-NPZ-schema herkend. Exacte ratio-kanalen worden uit de gehashte `canonical`-
-tekst gereconstrueerd; binaire objectvelden in oudere exports worden niet
-geopend en nieuwe exports bevatten uitsluitend numerieke of Unicode-arrays.
+With `neuralcert certify --npz FILE.npz`, the method is detected automatically
+from the NPZ schema. Exact ratio channels are reconstructed from the hashed
+`canonical` text; binary object fields in older exports are not opened, and
+new exports contain only numeric or Unicode arrays.
 
-Deze backend gebruikt de v6 Arb-route met directed rounding end-to-end. De
-NPZ-inhoud en SHA-256 worden vóór certificering gecontroleerd.
+This backend uses the v6 Arb route with directed rounding end to end. The NPZ
+contents and SHA-256 digest are checked before certification.
 
-De ratio-certifier ondersteunt op dit moment uitsluitend een export met één
-kanaal en macht 1. Gebruik daarom `--mu 1` bij discovery. Exports met meerdere
-kanalen of hogere machten worden bewust geweigerd en niet stilzwijgend
-vereenvoudigd.
+The ratio certifier currently supports only a single-channel, power-1 export.
+Use `--mu 1` during discovery. Exports with multiple channels or higher powers
+are deliberately rejected rather than silently simplified.
 
-Voor polynomial-discovery-exports reconstrueren alle certifierbackends via
-één gedeelde loader hetzelfde kanaalframe. `channel_norms` normaliseert
-uitsluitend `g_fine`; een geëxporteerde Ritz-vector wordt met
-`exp(-logA_diag/2)` naar dat genormaliseerde frame teruggebracht. Dit geldt ook
-voor `--use-nn-c`; de standaard re-Ritz-route blijft beschikbaar.
+For polynomial discovery exports, every certification backend reconstructs the
+same channel frame through one shared loader. `channel_norms` normalizes only
+`g_fine`; an exported Ritz vector is mapped back to that normalized frame with
+`exp(-logA_diag/2)`. This also applies to `--use-nn-c`; the default re-Ritz
+route remains available.
 
-## Onafhankelijke verifier
+## Independent verifier
 
-De verifier zit voor installatiegemak in dezelfde distributie, maar is een
-zelfstandig subpackage. Hij importeert geen code uit discovery of certification
-en implementeert de benodigde rekenstappen opnieuw.
+For installation convenience, the verifier is distributed in the same wheel,
+but it is a standalone subpackage. It imports no discovery or certification
+code and independently reimplements the required computations.
 
 ```bash
-neuralcert verify poly-certificaat.json --method poly
-neuralcert verify ratio-certificaat.json --method ratio
+neuralcert verify poly-certificate.json --method poly
+neuralcert verify ratio-certificate.json --method ratio
 ```
 
-Voor de niet-rigoureuze, directe Monte-Carlo-controle van de oorspronkelijke
-Maynard-functionalen is er een bewust apart commando:
+The non-rigorous direct Monte Carlo check of the original Maynard functionals
+is intentionally exposed as a separate command:
 
 ```bash
 neuralcert verify-direct --npz ratio-k201.npz --samples 1000000 --batches 40
 ```
 
-`neuralcert verify` controleert een bewijs; `neuralcert verify-direct` is uitsluitend
-een onafhankelijke diagnostische/falsificatietest en levert geen certificaat.
+`neuralcert verify` checks a proof, whereas `neuralcert verify-direct` is only
+an independent diagnostic and falsification test; it does not produce a
+certificate.
 
-### Delsarte-codegrenzen
+### Delsarte code bounds
 
-Delsarte is als tweede, zelfstandige probleemplugin toegevoegd. De eigen CLI
-weerspiegelt dat dit probleem andere invoer en een andere certificeringsroute
-heeft dan Maynard:
+Delsarte is the second standalone problem plugin. Its dedicated CLI reflects
+that this problem has different inputs and a different certification route
+from Maynard:
 
 ```bash
 neuralcert delsarte bound hamming --n 24 --distance 8 --q 2 \
@@ -235,15 +235,15 @@ neuralcert delsarte hierarchy 10 6 --r 3 \
   --output hierarchy-r3-10-6.json
 ```
 
-De LP wordt numeriek opgelost, dyadisch afgerond en daarna exact gerepareerd.
-De JSON-uitvoer is zelfvoorzienend; de Delsarte-verifier importeert geen
-NeuralCert-code en gebruikt alleen de Python-standaardbibliotheek. Zie
-[docs/delsarte.md](docs/delsarte.md) voor de Python-API en de trust boundary.
+The LP is solved numerically, rounded to dyadic rationals, and then repaired
+exactly. The JSON output is self-contained; the Delsarte verifier imports no
+NeuralCert code and uses only the Python standard library. See
+[docs/delsarte.md](docs/delsarte.md) for the Python API and trust boundary.
 
-### Cohn–Gonçalves tekenonzekerheid
+### Cohn–Gonçalves sign uncertainty
 
-De derde probleemplugin bevat Gaussian-mixture discovery, collocatie, een
-globale Laguerre-LP, een hybride A/B-diagnose en exacte Sturm-certificering:
+The third problem plugin contains Gaussian-mixture discovery, collocation, a
+global Laguerre LP, a hybrid A/B diagnostic, and exact Sturm certification:
 
 ```bash
 neuralcert sign laguerre --d 1 --sign 1 --n-basis 12 --json candidate.json
@@ -251,14 +251,14 @@ neuralcert sign certify --json candidate.json --out certificate.json
 neuralcert sign verify certificate.json
 ```
 
-Zie [docs/sign-uncertainty.md](docs/sign-uncertainty.md) voor alle discovery-
-en diagnosecommando's en de scheiding tussen discovery, certificering en
-onafhankelijke verificatie.
+See [docs/sign-uncertainty.md](docs/sign-uncertainty.md) for all discovery and
+diagnostic commands and for the separation between discovery, certification,
+and independent verification.
 
-### Meegeleverde datasets
+### Bundled datasets
 
-De Maynard eta-sweeps worden als package-resources meegeleverd en zijn dus ook
-beschikbaar na installatie uit een wheel:
+The Maynard eta sweeps are bundled as package resources and therefore remain
+available after installation from a wheel:
 
 ```python
 import csv
@@ -270,31 +270,30 @@ with dataset("maynard_geometric_eta_sweep").open(
     rows = list(csv.DictReader(stream))
 ```
 
-Beschikbare namen zijn `maynard_geometric_eta_sweep` en
-`maynard_R_sweep_eta`. De exacte bestandsnaam met `.csv` wordt eveneens
-geaccepteerd.
+Available names are `maynard_geometric_eta_sweep` and `maynard_R_sweep_eta`.
+The exact filename including `.csv` is also accepted.
 
-## Packagestructuur
+## Package structure
 
 ```text
 neuralcert/
-├── core/                 # problem/grid/result/constraint/registry-contracten
-├── exact/                # herbruikbare CRT-, basis- en schemes-infrastructuur
-├── discovery/            # generieke modellen, trainer, optimizers en probes
+├── core/                 # problem/grid/result/constraint/registry contracts
+├── exact/                # reusable CRT, basis, and scheme infrastructure
+├── discovery/            # generic models, trainer, optimizers, and probes
 ├── distill/              # rational/spectral/sparse policies
 ├── refine/               # eigen/convex/Newton/local policies
-├── verify/               # onafhankelijke verifierinterfaces en primitives
-├── data/                 # meegeleverde reproduceerbare CSV-datasets
+├── verify/               # independent verifier interfaces and primitives
+├── data/                 # bundled reproducible CSV datasets
 ├── pipeline.py
 └── problems/
-    ├── maynard/          # Maynard-plugin en legacy adapters
-    ├── delsarte/         # niveau-1 en hogere LP, certificering en losse verifier
-    └── sign_uncertainty/ # Gaussian/Laguerre discovery en exacte Sturm-verificatie
+    ├── maynard/          # Maynard plugin and legacy adapters
+    ├── delsarte/         # level-1/higher LP, certification, standalone verifier
+    └── sign_uncertainty/ # Gaussian/Laguerre discovery and exact Sturm verification
 
-maynard_tools/            # backwards-compatible gespecialiseerde implementatie
+maynard_tools/            # backward-compatible specialized implementation
 ├── discovery/
 ├── certification/
 └── verifier/
 ```
 
-Zie [docs/architecture.md](docs/architecture.md) voor de dependencyregels.
+See [docs/architecture.md](docs/architecture.md) for the dependency rules.

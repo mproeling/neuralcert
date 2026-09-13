@@ -1,10 +1,10 @@
-# Architectuur
+# Architecture
 
-## Generieke laag
+## Generic layer
 
-`neuralcert.core` definieert alleen contracts en value objects. Een problem
-plugin implementeert domeinsampling, een differentiable objective en goedkope
-validatie. De algoritmen leven in afzonderlijke stages:
+`neuralcert.core` defines only contracts and value objects. A problem plugin
+implements domain sampling, a differentiable objective, and inexpensive
+validation. Algorithms live in separate stages:
 
 ```text
 Problem
@@ -12,57 +12,57 @@ Problem
   ▼
 Discovery ──> Distillation ──> Refinement ──> Verification
     │              │               │                │
- numeriek       structureel      lokaal/exact     onafhankelijk
+ numerical       structural      local/exact      independent
 ```
 
-De pipeline bewaart iedere tussenuitkomst als een typed stage result. Geen
-stage mag een numeriek resultaat stilzwijgend promoveren tot een bewijs.
+The pipeline preserves every intermediate output as a typed stage result. No
+stage may silently promote a numerical result to a proof.
 
-`neuralcert.problems.maynard` is een plugin/adaptatielaag. De gespecialiseerde
-historische implementatie blijft voorlopig onder `maynard_tools`, zodat de
-nieuwe abstractie geen bewezen werkende numeriek herschrijft zonder afzonderlijke
-regressievalidatie.
+`neuralcert.problems.maynard` is a plugin and adapter layer. The specialized
+historical implementation remains under `maynard_tools` for now, so the new
+abstraction does not rewrite proven numerical code without separate regression
+validation.
 
-## Harde grens
+## Hard boundary
 
-`maynard_tools.discovery` mag geen module uit
-`maynard_tools.certification` importeren. Deze regel wordt met een AST-test
-gecontroleerd en omvat ook dynamische imports waarvan de module als letterlijke
-string is opgegeven.
+`maynard_tools.discovery` must not import modules from
+`maynard_tools.certification`. An AST test enforces this rule, including dynamic
+imports whose module is supplied as a string literal.
 
-De reden is inhoudelijk: discovery rekent snel en numeriek om kandidaten te
-vinden; certification moet zelfstandig vaststellen wat exact bewezen is.
+The reason is substantive: discovery searches for candidates quickly and
+numerically, while certification must independently establish exactly what has
+been proved.
 
-## Dependencyrichting
+## Dependency direction
 
 ```text
 maynard_tools.discovery ──> NumPy / SciPy / PyTorch
-maynard_tools.certification ──> NumPy / SciPy / optioneel FLINT
+maynard_tools.certification ──> NumPy / SciPy / optional FLINT
 ```
 
-Certification mag NPZ-uitvoer van discovery als **data** lezen. Dat is geen
-Python-import en creëert geen code-afhankelijkheid in de andere richting.
+Certification may read discovery NPZ output as **data**. This is not a Python
+import and creates no code dependency in the opposite direction.
 
-## Historische varianten
+## Historical variants
 
-De twee discovery-entrypoints blijven afzonderlijk omdat de gated variant een
-eigen distributed uitvoeringsmodel en uitgebreidere objective-logica heeft.
-Alleen aantoonbaar identieke definities zijn naar gedeelde modules verplaatst.
+The two discovery entry points remain separate because the gated variant has
+its own distributed execution model and more extensive objective logic. Only
+definitions shown to be identical have been moved into shared modules.
 
-De certificeringsvarianten blijven expliciete backends. Zo kan een bestaand
-resultaat met dezelfde methode opnieuw worden gecontroleerd zonder stilzwijgend
-naar een andere rekenmethode over te schakelen.
+The certification variants remain explicit backends. This allows an existing
+result to be checked again with the same method, without silently switching to
+a different numerical method.
 
-De publieke discovery- en certification-CLI's gebruiken dezelfde methodenamen:
-`poly` voor de bestaande polynomial/neural workflow en `ratio` voor de
-confluent-ratio workflow. De ratio-certifier gebruikt Arb met directed rounding
-en accepteert momenteel alleen één power-1-kanaal.
+The public discovery and certification CLIs use the same method names: `poly`
+for the existing polynomial/neural workflow and `ratio` for the confluent-ratio
+workflow. The ratio certifier uses Arb with directed rounding and currently
+accepts only one power-1 channel.
 
-## Onafhankelijke verifier
+## Independent verifier
 
-`maynard_tools.verifier` is alleen voor distributiegemak onderdeel van hetzelfde
-wheel. De implementatie importeert niets uit `discovery` of `certification` en
-heeft geen relatieve imports naar andere packagecode. Een AST-test bewaakt beide
-regels. De certificaatverifier gebruikt alleen de standaardbibliotheek voor de
-poly-route en laadt NumPy en python-flint pas binnen de ratio-route. De directe
-I/J-controle gebruikt NumPy en is expliciet niet-rigoureus.
+`maynard_tools.verifier` is included in the same wheel only for ease of
+distribution. Its implementation imports nothing from `discovery` or
+`certification` and has no relative imports into other package code. An AST test
+enforces both rules. The certificate verifier uses only the standard library
+for the poly route and loads NumPy and python-flint only inside the ratio route.
+The direct I/J check uses NumPy and is explicitly non-rigorous.

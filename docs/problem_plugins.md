@@ -1,6 +1,6 @@
-# Een probleemplugin schrijven
+# Writing a problem plugin
 
-De kleinste bruikbare problem spec implementeert drie methoden:
+The smallest useful problem specification implements three methods:
 
 ```python
 from neuralcert import Evaluation, FunctionalProblem, Grid, SamplingConfig
@@ -12,33 +12,34 @@ class MyProblem(FunctionalProblem):
         ...
 
     def evaluate(self, candidate, grid: Grid) -> Evaluation:
-        # Geef één differentiable scalar objective terug.
+        # Return one differentiable scalar objective.
         ...
 
     def validate(self, candidate, grid: Grid):
-        # Goedkope controles; geen formeel bewijs.
+        # Inexpensive checks, not a formal proof.
         return {"finite": True}
 ```
 
-`evaluate` is de enige plaats waar probleemspecifieke discoverywiskunde nodig
-is. De generieke trainer beheert modellen, optimizer, device, dtype, history en
-best-state-selectie.
+`evaluate` is the only place where problem-specific discovery mathematics is
+required. The generic trainer manages models, the optimizer, device, dtype,
+history, and best-state selection.
 
-## Optionele hooks
+## Optional hooks
 
-Problemen kunnen hooks aanbieden voor componenten die specifieke wiskundige
-kennis vereisen:
+Problems may expose hooks for components that require specific mathematical
+knowledge:
 
-- `constraints(candidate, grid)` retourneert een differentiable penalty;
-- `diagnostics(candidate, grid)` retourneert goedkope numerieke observaties;
-- `distill_rational(...)`, `distill_spectral(...)` of `distill_sparse(...)`;
-- `refine_eigen(...)`, `refine_convex(...)`, `refine_newton(...)`;
-- eigen onafhankelijke verifier-callables.
+- `constraints(candidate, grid)` returns a differentiable penalty;
+- `diagnostics(candidate, grid)` returns inexpensive numerical observations;
+- `distill_rational(...)`, `distill_spectral(...)`, or `distill_sparse(...)`;
+- `refine_eigen(...)`, `refine_convex(...)`, or `refine_newton(...)`;
+- their own independent verifier callables.
 
-Deze hooks zijn optioneel. NeuralCert doet geen generieke rationalisatie of
-exactheidsclaim wanneer het probleem daarvoor onvoldoende informatie geeft.
+These hooks are optional. NeuralCert makes no generic rationalization or
+exactness claim when the problem does not provide enough information to support
+one.
 
-## Registratie
+## Registration
 
 ```python
 from neuralcert.core.registry import problems
@@ -47,13 +48,11 @@ problems.register("my-problem", MyProblem)
 problem = problems.create("my-problem", ...)
 ```
 
-Registratie is handig voor CLI's en configuratiebestanden, maar directe
-constructie van een problem object blijft ondersteund.
+Registration is convenient for CLIs and configuration files, but direct
+construction of a problem object remains supported.
 
-## Vertrouwensgrens
+## Trust boundary
 
-`validate` en landscape probes zijn numerieke diagnostiek. Alleen een
-afzonderlijke verifier mag `VerificationResult(verified=True)` produceren.
-Injecteer die verifier in de pipeline; laat discovery niet zijn eigen resultaat
-tot bewijs promoveren.
-
+`validate` and landscape probes are numerical diagnostics. Only a separate
+verifier may produce `VerificationResult(verified=True)`. Inject that verifier
+into the pipeline; discovery must not promote its own result to a proof.
