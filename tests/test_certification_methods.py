@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 
 import numpy as np
+import pytest
 
 from maynard_tools.certification.cli import METHODS, _detect_npz_method, _dispatch_parser
 from maynard_tools.certification import ratio
@@ -122,3 +123,21 @@ def test_ratio_loader_ignores_legacy_object_arrays(tmp_path) -> None:
     loaded = ratio.load(path)
     assert loaded["cs"] == [ratio.Fraction(1, 5)]
     assert loaded["ws"] == [ratio.Fraction(1)]
+
+
+def test_ratio_loader_rejects_pickled_security_metadata_with_migration_hint(
+    tmp_path,
+) -> None:
+    canonical = "k=10|1/5^-1*1"
+    path = tmp_path / "legacy-object-metadata.npz"
+    np.savez(
+        path,
+        k=10,
+        canonical=np.asarray(canonical, dtype=object),
+        sha256=np.asarray(hashlib.sha256(canonical.encode()).hexdigest(), dtype=object),
+        R_discovery=2.0,
+        ceiling=3.0,
+    )
+
+    with pytest.raises(ValueError, match=r"Regenerate.*>= 0\.12\.3"):
+        ratio.load(path)

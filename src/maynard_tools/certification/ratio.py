@@ -301,16 +301,27 @@ def load(path):
     # Only numeric/Unicode metadata is accessed. Legacy object arrays with
     # exact integers may remain in the archive, but are deliberately ignored:
     # the same exact values are reconstructed from the hashed canonical text.
-    with np.load(path) as archive:
+    with np.load(path, allow_pickle=False) as archive:
         required = {"k", "canonical", "sha256", "R_discovery", "ceiling"}
         missing = required.difference(archive.files)
         if missing:
             raise ValueError(f"npz missing required fields: {sorted(missing)}")
-        canon = str(archive["canonical"])
-        stored_hash = str(archive["sha256"])
-        stored_k = int(archive["k"])
-        discovery = float(archive["R_discovery"])
-        ceiling = float(archive["ceiling"])
+        try:
+            canon = str(archive["canonical"])
+            stored_hash = str(archive["sha256"])
+            stored_k = int(archive["k"])
+            discovery = float(archive["R_discovery"])
+            ceiling = float(archive["ceiling"])
+        except ValueError as exc:
+            if "pickle" not in str(exc).lower() and "object array" not in str(exc).lower():
+                raise
+            raise ValueError(
+                f"{path} is a legacy ratio NPZ containing a pickled object "
+                "array in security-critical metadata. NeuralCert never enables "
+                "pickle while certifying. Regenerate this file with NeuralCert "
+                ">= 0.12.3; current discovery exports numeric and Unicode arrays "
+                "only."
+            ) from exc
     got = hashlib.sha256(canon.encode()).hexdigest()
     if got != stored_hash:
         raise ValueError("sha256 mismatch: the .npz has been altered")
