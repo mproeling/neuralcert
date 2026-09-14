@@ -1,0 +1,14 @@
+neuralcert discover --method ratio --k 5 --mu 1 --epsilon 0 --export k5-eps0-ratio.npz
+
+k = 5   mu = [1]   epsilon = 0   M = 1   [3.4s]
+  R          = 1.99666861
+  log k      = 1.60943791
+  ceiling    = 2.01179739   (headroom +0.015129)
+  log k - R  = -0.387231
+  c          = [0.56457181]
+  weights    = [1.0]
+  rank       = 1/1   cond = 1.000e+00
+  optimiser  = nit 71, moved 0.3435 in log c, 0 gate-failed coords, spread 1.0
+  export keep indices (by |v|): [0]
+  exported 1 channels (pruned 0 on |v|) to k5-eps0-ratio.npz
+  sha256 = dfbd528eb3900e18771468e642b8cbcde4b2ed9074a593701419a856e2c596e6

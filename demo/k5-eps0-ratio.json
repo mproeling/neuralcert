@@ -1,0 +1,70 @@
+{
+  "assembly_note": "All error bounds assembled in Arb ball arithmetic; floats exit only through provably outward-rounded conversions (nudge-verified against the ball).",
+  "certified_quantities": {
+    "D_enclosure": {
+      "lower": 0.2196630290925637,
+      "upper": 0.21966302909256372
+    },
+    "N_enclosure": {
+      "lower": 0.0877189203290238,
+      "upper": 0.0877189203290238
+    }
+  },
+  "claim": {
+    "M_k_lower_bound": 1.971771176,
+    "ceiling_source": "M_k < k/(k-1) log k  (Polymath8b)",
+    "k": 5,
+    "known_upper_bound_ceiling": 2.0117973905426254,
+    "primes_criterion": "r_k = ceil(theta M_k / 2), theta = 1/2 - eps (Bombieri-Vinogradov; Maynard Prop. 4.2)",
+    "primes_implied": 1,
+    "statement": "M_5 >= 1.971771176"
+  },
+  "error_terms": {
+    "D_alias": 4.99060886139429e-07,
+    "D_band": 0.0,
+    "D_tail": 0.0013051009573133488,
+    "N_alias": 3.51115912146848e-07,
+    "N_band": 0.0,
+    "N_tail": 0.0005786544597255379,
+    "P_S_gt": 1.2860941636237798e-06,
+    "y": 7.0
+  },
+  "far_field_blocks": [],
+  "final_arithmetic": {
+    "D_upper_used": 0.22096862911076323,
+    "N_lower_used": 0.08713991475338612,
+    "R_lower": 1.9717711763896169,
+    "R_midpoint": 1.9966700971800757,
+    "ceiling": 2.0117973905426254
+  },
+  "format": "maynard-Mk-certificate/2",
+  "parameters": {
+    "A_upper": 16.170030887466964,
+    "M0": 153,
+    "P": 8.0,
+    "Theta_ball": 32.34006177493393,
+    "assembly": "directed-arb/2",
+    "block_ratio": 2.0,
+    "nnode": 153,
+    "npanels": 80,
+    "prec": 200,
+    "rmax": 12,
+    "theta_far": 120.0,
+    "tol_bits": 45
+  },
+  "self_hash_sha256": "7f12647dfe9d7c9e02fc1f636eb8aec4ae05ac359675a0412cdbb551a328ee20",
+  "source": {
+    "R_discovery": 1.9966686078849576,
+    "canonical": "k=5|552637315007/978860977902^-1*1",
+    "npz": ".\\k5-eps0-ratio.npz",
+    "sha256": "dfbd528eb3900e18771468e642b8cbcde4b2ed9074a593701419a856e2c596e6",
+    "u_exact": "1"
+  },
+  "trial_function": {
+    "c_exact": "552637315007/978860977902",
+    "form": "F = prod_{i=1..k} g(t_i) on the simplex",
+    "g": "g(t) = 1/(c + n t),  n = k-1",
+    "note": "R is invariant under scaling of the weight; any fixed weight yields a valid lower bound.",
+    "u_exact": "1"
+  }
+}

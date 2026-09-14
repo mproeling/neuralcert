@@ -1,0 +1,15 @@
+neuralcert certify --method ratio --npz .\k5-eps0-ratio.npz --cert-json k5-eps0-ratio.json
+
+trial function : k=5|552637315007/978860977902^-1*1
+  sha256       = dfbd528eb3900e18...  (verified)
+  k            = 5   R_discovery = 1.9966686079
+  A = 16.17   Theta_ball = 32.3401   theta_far = 120   nodes = 307   far blocks = 0
+  aliasing: P(S > 7) <= 1.286e-06   (Markov, r <= 12)
+  N in [0.08771892032902380 +/- 6.19e-18]   err(band,tail,alias) = (0.00e+00, 5.79e-04, 3.51e-07)
+  D in [0.2196630290925637 +/- 2.42e-17]   err = (0.00e+00, 1.31e-03, 4.99e-07)
+  R midpoint   = 1.9966700972   |mid - discovery| = 1.49e-06
+
+  CERTIFIED (directed):  M_5 >= 1.9717711764   [0s]
+  => at least 1 primes infinitely often (theta = 1/2 - eps)
+  certificate written to k5-eps0-ratio.json
+  self hash sha256 = 7f12647dfe9d7c9e02fc1f636eb8aec4...
